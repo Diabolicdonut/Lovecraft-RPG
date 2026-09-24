@@ -467,7 +467,7 @@
 
             <label for="casePremise">Premise</label>
             <textarea id="casePremise" class="case-premise"
-              placeholder="Example: Werewolf — survivors trapped overnight in an isolated mansion during a blizzard."></textarea>
+              placeholder="Enter a premise here. Example: Werewolf — survivors trapped overnight in an isolated mansion during a blizzard."></textarea>
 
             <div class="buttons">
               <button id="generateCaseButton" class="primary">Generate Case</button>
@@ -579,7 +579,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.7.1 · Mystery Engine v0.1
+      Black Meridian · Browser Engine v0.7.2 · Mystery Engine v0.1
     </footer>
   </div>
 
@@ -598,8 +598,8 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.7.1";
-const DEBUG_REPORT_VERSION = 1;
+const APP_VERSION = "0.7.2";
+const DEBUG_REPORT_VERSION = 2;
 const MAX_DEBUG_EVENTS = 1000;
 
 // ============================================================================
@@ -608,7 +608,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.7.1",
+    version: "0.7.2",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -1006,6 +1006,19 @@ async function saveTextFile(filename, text, mimeType = "application/json") {
   return { method: "blob-download", bytes: blob.size };
 }
 
+function safeDebugSection(label, producer) {
+  try {
+    return producer();
+  } catch (error) {
+    return {
+      _captureError: true,
+      section: label,
+      error: String(error),
+      stack: error?.stack || null
+    };
+  }
+}
+
 function buildDebugReport() {
   let storedSaveParsed = null;
   let storedSaveParseError = null;
@@ -1033,59 +1046,82 @@ function buildDebugReport() {
       ]
     },
 
-    configuration: {
-      model: MODEL,
-      workerBase: WORKER_BASE,
-      openAIEndpoint: OPENAI_ENDPOINT,
-      authEndpoint: AUTH_ENDPOINT,
-      saveKey: SAVE_KEY,
-      debugKey: DEBUG_KEY
-    },
+    configuration: safeDebugSection(
+      "configuration",
+      () => ({
+        model: MODEL,
+        workerBase: WORKER_BASE,
+        openAIEndpoint: OPENAI_ENDPOINT,
+        authEndpoint: AUTH_ENDPOINT,
+        saveKey: SAVE_KEY,
+        debugKey: DEBUG_KEY
+      })
+    ),
 
-    connection: {
-      gameTokenPresent: Boolean(gameToken),
-      gameTokenStoredInLocalStorage:
-        Boolean(localStorage.getItem(TOKEN_KEY)),
-      connectedUIState:
-        connectionStatus.classList.contains("connected")
-    },
+    connection: safeDebugSection(
+      "connection",
+      () => ({
+        gameTokenPresent: Boolean(gameToken),
+        gameTokenStoredInLocalStorage:
+          Boolean(localStorage.getItem(TOKEN_KEY)),
+        connectedUIState:
+          connectionStatus.classList.contains("connected")
+      })
+    ),
 
-    browser: browserEnvironment(),
+    browser: safeDebugSection(
+      "browser",
+      () => browserEnvironment()
+    ),
 
-    visibleUI: captureVisibleUI(),
+    visibleUI: safeDebugSection(
+      "visibleUI",
+      () => captureVisibleUI()
+    ),
 
-    runtime: {
-      currentAssessment: deepClone(currentAssessment),
-      mysterySource: deepClone(game.mysterySource),
-      currentGameStateInMemory: deepClone(game)
-    },
+    runtime: safeDebugSection(
+      "runtime",
+      () => ({
+        currentAssessment: deepClone(currentAssessment),
+        mysterySource: deepClone(game.mysterySource),
+        currentGameStateInMemory: deepClone(game)
+      })
+    ),
 
-    storage: {
-      storedGameSave: storedSaveParsed,
-      storedGameSaveParseError,
-      storedGameSaveByteLength:
-        rawStoredSave ? new Blob([rawStoredSave]).size : 0,
-      localStorageKeys: Object.keys(localStorage).map(key => ({
-        key,
-        value:
-          key === TOKEN_KEY
-            ? "[REDACTED]"
-            : key === SAVE_KEY
-              ? "[INCLUDED AS storedGameSave]"
-              : key === DEBUG_KEY
-                ? "[INCLUDED AS diagnosticEvents]"
-                : localStorage.getItem(key)
-      })),
-      sessionStorageKeys: Object.keys(sessionStorage).map(key => ({
-        key,
-        value:
-          key.toLowerCase().includes("token")
-            ? "[REDACTED]"
-            : sessionStorage.getItem(key)
-      }))
-    },
+    storage: safeDebugSection(
+      "storage",
+      () => ({
+        storedGameSave: storedSaveParsed,
+        storedGameSaveParseError: storedSaveParseError,
+        storedGameSaveByteLength:
+          rawStoredSave ? new Blob([rawStoredSave]).size : 0,
 
-    diagnosticEvents: deepClone(diagnosticEvents)
+        localStorageKeys: Object.keys(localStorage).map(key => ({
+          key,
+          value:
+            key === TOKEN_KEY
+              ? "[REDACTED]"
+              : key === SAVE_KEY
+                ? "[INCLUDED AS storedGameSave]"
+                : key === DEBUG_KEY
+                  ? "[INCLUDED AS diagnosticEvents]"
+                  : localStorage.getItem(key)
+        })),
+
+        sessionStorageKeys: Object.keys(sessionStorage).map(key => ({
+          key,
+          value:
+            key.toLowerCase().includes("token")
+              ? "[REDACTED]"
+              : sessionStorage.getItem(key)
+        }))
+      })
+    ),
+
+    diagnosticEvents: safeDebugSection(
+      "diagnosticEvents",
+      () => deepClone(diagnosticEvents)
+    )
   };
 
   return sanitizeForReport(report);
@@ -1330,28 +1366,109 @@ function outputText(data) {
 }
 
 async function callStructured(system, user, name, schema, options = {}) {
-  const data = await callOpenAI({
-    input: [
-      { role: "system", content: system },
-      { role: "user", content: user }
-    ],
-    reasoning: { effort: options.effort || "low" },
-    max_output_tokens: options.maxTokens || 800,
-    text: {
-      format: {
-        type: "json_schema",
-        name,
-        strict: true,
-        schema
+  const maxAttempts = options.attempts || 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const retryInstruction =
+      attempt > 1
+        ? "\n\nIMPORTANT RETRY: The previous structured response was incomplete or invalid JSON. Be substantially more concise while preserving every required field. Return a COMPLETE object."
+        : "";
+
+    const data = await callOpenAI({
+      input: [
+        {
+          role: "system",
+          content: system + retryInstruction
+        },
+        {
+          role: "user",
+          content: user
+        }
+      ],
+      reasoning: {
+        effort: options.effort || "low"
+      },
+      max_output_tokens:
+        Math.min(options.maxTokens || 800, 8000),
+      text: {
+        format: {
+          type: "json_schema",
+          name,
+          strict: true,
+          schema
+        }
       }
+    });
+
+    const raw = outputText(data);
+
+    const incompleteReason =
+      data?.incomplete_details?.reason ||
+      (data?.status === "incomplete" ? "incomplete_response" : null);
+
+    if (incompleteReason) {
+      lastError = new Error(
+        `Structured response was incomplete (${incompleteReason}).`
+      );
+
+      recordDebug("structured_output_incomplete", {
+        name,
+        attempt,
+        maxAttempts,
+        incompleteReason,
+        rawTextLength: raw.length,
+        rawTextTail: raw.slice(-1200)
+      });
+
+      continue;
     }
-  });
 
-  const text = outputText(data);
+    if (!raw) {
+      lastError = new Error(
+        "The AI returned no structured output."
+      );
 
-  if (!text) throw new Error("The AI returned no structured output.");
+      recordDebug("structured_output_empty", {
+        name,
+        attempt,
+        maxAttempts,
+        response: data
+      });
 
-  return JSON.parse(text);
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+
+      recordDebug("structured_output_parsed", {
+        name,
+        attempt,
+        rawTextLength: raw.length
+      });
+
+      return parsed;
+    } catch (error) {
+      lastError = error;
+
+      recordDebug("structured_output_parse_error", {
+        name,
+        attempt,
+        maxAttempts,
+        error: String(error),
+        rawTextLength: raw.length,
+        rawTextHead: raw.slice(0, 600),
+        rawTextTail: raw.slice(-1600),
+        responseStatus: data?.status || null,
+        incompleteDetails: data?.incomplete_details || null
+      });
+    }
+  }
+
+  throw new Error(
+    `Structured output failed after ${maxAttempts} attempt(s): ${lastError?.message || lastError || "unknown error"}`
+  );
 }
 
 // ============================================================================
@@ -2110,7 +2227,8 @@ async function createPremiseContract(originalPremise) {
     PREMISE_CONTRACT_SCHEMA,
     {
       effort: "low",
-      maxTokens: 1000
+      maxTokens: 1200,
+      attempts: 2
     }
   );
 }
@@ -2150,12 +2268,13 @@ async function validatePremiseMatch(
     PREMISE_MATCH_SCHEMA,
     {
       effort: "low",
-      maxTokens: 1000
+      maxTokens: 1200,
+      attempts: 2
     }
   );
 }
 
-async function generateCase(premise = "") {
+async function generateCase(premise = "", surprise = false) {
   if (!gameToken) {
     caseGeneratorMessage.textContent =
       "Connect to the OpenAI proxy before generating a case.";
@@ -2164,6 +2283,19 @@ async function generateCase(premise = "") {
   }
 
   const originalPremise = premise.trim();
+
+  if (!surprise && !originalPremise) {
+    caseGeneratorMessage.textContent =
+      "Enter a premise in the box above, or click Surprise Me for a random case.";
+    caseGeneratorMessage.className = "help error";
+    casePremise.focus();
+
+    recordDebug("case_generation_blocked_empty_premise", {
+      button: "Generate Case"
+    });
+
+    return;
+  }
 
   generateCaseButton.disabled = true;
   surpriseCaseButton.disabled = true;
@@ -2227,28 +2359,31 @@ async function generateCase(premise = "") {
           "The player begins with only the openingHook and public starting scene. Hidden fields are not automatically known.",
           "Allow multiple resolutions: stopping, containing, escaping, rescuing, understanding, or failing.",
           "Make the atmosphere serious and grounded rather than constantly announcing supernatural horror.",
+          "OUTPUT SIZE IS IMPORTANT: keep prose concise. Most descriptions should be 1–2 sentences. NPC secret, motive, and knowledge entries should be brief. Clue discovery text should usually be one sentence. Do not write essays inside JSON fields.",
           previousFailure
             ? "A previous attempt failed QA. Correct every listed problem instead of repeating it."
             : ""
         ].filter(Boolean).join("\n"),
         JSON.stringify({
           originalPremise:
-            originalPremise ||
-            "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game.",
+            surprise
+              ? "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game."
+              : originalPremise,
           premiseContract: contract,
           previousFailure,
           desiredScale: {
-            locations: "4–6",
-            npcs: "4–7",
-            clues: "10–16",
-            timelineEvents: "3–6"
+            locations: "4",
+            npcs: "4–5",
+            clues: "10–12",
+            timelineEvents: "3–4"
           }
         }),
         "black_meridian_mystery",
         MYSTERY_SCHEMA,
         {
-          effort: "medium",
-          maxTokens: 7000
+          effort: "low",
+          maxTokens: 8000,
+          attempts: 2
         }
       );
 
@@ -2322,7 +2457,7 @@ async function generateCase(premise = "") {
 
     game.mysterySource = {
       originalPremise:
-        originalPremise || "Surprise Me",
+        surprise ? "Surprise Me" : originalPremise,
       premiseContract: deepClone(contract),
       premiseValidation: deepClone(premiseQA)
     };
@@ -3112,12 +3247,15 @@ forgetButton.addEventListener("click", () => {
 });
 
 generateCaseButton.addEventListener("click", () => {
-  generateCase(casePremise.value.trim());
+  generateCase(
+    casePremise.value.trim(),
+    false
+  );
 });
 
 surpriseCaseButton.addEventListener("click", () => {
   casePremise.value = "";
-  generateCase("");
+  generateCase("", true);
 });
 
 assessButton.addEventListener("click", assessAction);
