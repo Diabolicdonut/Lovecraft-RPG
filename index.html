@@ -306,6 +306,53 @@
       font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
     }
 
+
+    .case-premise {
+      min-height: 78px;
+    }
+
+    .case-summary {
+      display: grid;
+      gap: 7px;
+      margin-top: 12px;
+      color: var(--muted);
+      font: 12px/1.45 system-ui, sans-serif;
+    }
+
+    .case-summary strong {
+      color: var(--text);
+    }
+
+    .case-hook {
+      padding: 9px;
+      margin-top: 9px;
+      background: #0f1417;
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: 7px;
+      white-space: pre-wrap;
+    }
+
+    .evidence-list,
+    .facts-list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: #c8c5ba;
+    }
+
+    .evidence-list li,
+    .facts-list li {
+      margin: 4px 0;
+    }
+
+    .small-count {
+      color: var(--accent2);
+      font-weight: 700;
+    }
+
+    .entry .text {
+      white-space: pre-wrap;
+    }
+
     footer {
       margin-top: 8px;
       text-align: center;
@@ -416,6 +463,46 @@
 
         <section class="panel">
           <div class="panel-body">
+            <h2>Case Generator</h2>
+
+            <label for="casePremise">Premise</label>
+            <textarea id="casePremise" class="case-premise"
+              placeholder="Example: Werewolf — survivors trapped overnight in an isolated mansion during a blizzard."></textarea>
+
+            <div class="buttons">
+              <button id="generateCaseButton" class="primary">Generate Case</button>
+              <button id="surpriseCaseButton">Surprise Me</button>
+            </div>
+
+            <div id="caseGeneratorMessage" class="help">
+              Generates one coherent hidden mystery, then the browser engine keeps that truth fixed.
+            </div>
+
+            <div id="caseSummary" class="case-summary" style="display:none">
+              <div><strong>Case:</strong> <span id="caseTitle"></span></div>
+              <div><strong>Locale:</strong> <span id="caseLocale"></span></div>
+              <div><strong>Elapsed:</strong> <span id="caseElapsed"></span></div>
+              <div>
+                <strong>Evidence:</strong>
+                <span id="evidenceCount" class="small-count">0</span>
+              </div>
+              <div id="caseHook" class="case-hook"></div>
+
+              <div>
+                <strong>Known facts</strong>
+                <ul id="knownFacts" class="facts-list"></ul>
+              </div>
+
+              <div>
+                <strong>Evidence found</strong>
+                <ul id="evidenceList" class="evidence-list"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-body">
             <h2>Game State</h2>
             <div class="details">
               <div><strong>Turn:</strong> <span id="turnDisplay"></span></div>
@@ -491,7 +578,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.6 · Cloudflare is used only as a protected OpenAI gateway.
+      Black Meridian · Browser Engine v0.7 · Mystery Engine v0.1
     </footer>
   </div>
 
@@ -510,7 +597,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.6";
+const APP_VERSION = "0.7";
 const DEBUG_REPORT_VERSION = 1;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -520,13 +607,15 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.6",
+    version: "0.7",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
     location: "Unassigned",
+    currentLocationId: null,
+    caseElapsedMinutes: 0,
     publicScene:
-      "No mystery is active yet. This build is testing the browser-side character and action engine.",
+      "No mystery is active yet. Generate a case to begin investigating.",
 
     character: {
       name: "Prototype Investigator",
@@ -569,14 +658,55 @@ function newGameState() {
     campaign: null,
     npcs: {},
     clues: {},
-    knowledge: {},
+    knowledge: {
+      clues: {},
+      facts: {}
+    },
     inventory: [],
     relationships: {},
     history: []
   };
 }
 
-let game = loadGame() || newGameState();
+function migrateGameState(state) {
+  if (!state || typeof state !== "object") {
+    return newGameState();
+  }
+
+  state.version = "0.7";
+
+  if (!("currentLocationId" in state)) {
+    state.currentLocationId = state.mystery?.startLocationId || null;
+  }
+
+  if (!("caseElapsedMinutes" in state)) {
+    state.caseElapsedMinutes = 0;
+  }
+
+  if (!state.knowledge || typeof state.knowledge !== "object") {
+    state.knowledge = { clues: {}, facts: {} };
+  }
+
+  state.knowledge.clues ||= {};
+  state.knowledge.facts ||= {};
+  state.history ||= [];
+  state.npcs ||= {};
+  state.clues ||= {};
+  state.inventory ||= [];
+  state.relationships ||= {};
+
+  if (state.mystery && !state.mysteryRuntime) {
+    state.mysteryRuntime = {
+      firedTimelineIds: [],
+      validationProblems: [],
+      generatedAt: null
+    };
+  }
+
+  return state;
+}
+
+let game = migrateGameState(loadGame() || newGameState());
 // Persist GAME_TOKEN across reloads and GitHub updates.
 // Also migrate the older prototype's sessionStorage token automatically.
 let gameToken =
@@ -602,6 +732,19 @@ const connectButton = $("connectButton");
 const forgetButton = $("forgetButton");
 const connectionStatus = $("connectionStatus");
 const connectionMessage = $("connectionMessage");
+
+const casePremise = $("casePremise");
+const generateCaseButton = $("generateCaseButton");
+const surpriseCaseButton = $("surpriseCaseButton");
+const caseGeneratorMessage = $("caseGeneratorMessage");
+const caseSummary = $("caseSummary");
+const caseTitle = $("caseTitle");
+const caseLocale = $("caseLocale");
+const caseElapsed = $("caseElapsed");
+const evidenceCount = $("evidenceCount");
+const caseHook = $("caseHook");
+const knownFacts = $("knownFacts");
+const evidenceList = $("evidenceList");
 
 const playerInput = $("playerInput");
 const assessButton = $("assessButton");
@@ -751,6 +894,14 @@ function captureVisibleUI() {
       turn: $("turnDisplay").textContent,
       time: $("timeDisplay").textContent,
       location: $("locationDisplay").textContent
+    },
+    casePanel: {
+      active: Boolean(game.mystery),
+      title: caseTitle?.textContent || "",
+      locale: caseLocale?.textContent || "",
+      elapsed: caseElapsed?.textContent || "",
+      evidenceCount: evidenceCount?.textContent || "",
+      hook: caseHook?.textContent || ""
     },
     storyEntries
   };
@@ -1212,6 +1363,8 @@ function renderGame() {
   $("timeDisplay").textContent = Number.isNaN(d.valueOf())
     ? game.gameTime
     : d.toLocaleString();
+
+  renderCaseSummary();
 }
 
 function addEntry(kind, label, text) {
@@ -1234,15 +1387,798 @@ function addEntry(kind, label, text) {
 function renderHistory() {
   $("story").innerHTML = "";
 
-  addEntry(
-    "system",
-    "System",
-    game.publicScene
-  );
+  if (game.mystery) {
+    addEntry(
+      "system",
+      game.mystery.title,
+      game.mystery.openingHook
+    );
+
+    addEntry(
+      "system",
+      game.location,
+      game.publicScene
+    );
+  } else {
+    addEntry(
+      "system",
+      "System",
+      game.publicScene
+    );
+  }
 
   for (const item of game.history || []) {
     addEntry("player", "You", item.action);
     addEntry("narrator", item.outcome, item.narration);
+
+    for (const eventText of item.timelineEvents || []) {
+      addEntry("system", "Event", eventText);
+    }
+  }
+}
+
+// ============================================================================
+// MYSTERY ENGINE v0.1
+// ============================================================================
+
+const MYSTERY_SCHEMA = {
+  type: "object",
+  properties: {
+    title: { type: "string" },
+    era: { type: "string" },
+    startDateTime: { type: "string" },
+    region: { type: "string" },
+    openingHook: { type: "string" },
+    hiddenTruth: { type: "string" },
+    threat: { type: "string" },
+    antagonistGoal: { type: "string" },
+    deadlineMinutes: {
+      type: "integer",
+      minimum: 60,
+      maximum: 43200
+    },
+    startLocationId: { type: "string" },
+
+    facts: {
+      type: "array",
+      minItems: 4,
+      maxItems: 10,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          statement: { type: "string" },
+          importance: {
+            type: "string",
+            enum: ["minor", "major", "critical"]
+          }
+        },
+        required: ["id", "statement", "importance"],
+        additionalProperties: false
+      }
+    },
+
+    locations: {
+      type: "array",
+      minItems: 4,
+      maxItems: 7,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          publicDescription: { type: "string" },
+          exits: {
+            type: "array",
+            minItems: 1,
+            maxItems: 6,
+            items: { type: "string" }
+          },
+          objects: {
+            type: "array",
+            minItems: 1,
+            maxItems: 8,
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                publicDescription: { type: "string" }
+              },
+              required: ["id", "name", "publicDescription"],
+              additionalProperties: false
+            }
+          }
+        },
+        required: ["id", "name", "publicDescription", "exits", "objects"],
+        additionalProperties: false
+      }
+    },
+
+    npcs: {
+      type: "array",
+      minItems: 4,
+      maxItems: 8,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          role: { type: "string" },
+          locationId: { type: "string" },
+          publicDescription: { type: "string" },
+          secret: { type: "string" },
+          motive: { type: "string" },
+          knowledge: {
+            type: "array",
+            minItems: 0,
+            maxItems: 8,
+            items: { type: "string" }
+          }
+        },
+        required: [
+          "id", "name", "role", "locationId",
+          "publicDescription", "secret", "motive", "knowledge"
+        ],
+        additionalProperties: false
+      }
+    },
+
+    clues: {
+      type: "array",
+      minItems: 10,
+      maxItems: 18,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          locationId: { type: "string" },
+          targetType: {
+            type: "string",
+            enum: ["scene", "object", "npc"]
+          },
+          targetId: { type: "string" },
+          actionType: {
+            type: "string",
+            enum: [
+              "observe", "research", "social", "stealth",
+              "medical", "technical", "other"
+            ]
+          },
+          skill: {
+            type: "string",
+            enum: [
+              "observation", "research", "persuasion", "deception",
+              "stealth", "medicine", "technical", "composure"
+            ]
+          },
+          difficulty: {
+            type: "string",
+            enum: ["routine", "favorable", "uncertain", "difficult", "extreme"]
+          },
+          core: { type: "boolean" },
+          publicDiscovery: { type: "string" },
+          strongDiscovery: { type: "string" },
+          factId: { type: "string" }
+        },
+        required: [
+          "id", "name", "locationId", "targetType", "targetId",
+          "actionType", "skill", "difficulty", "core",
+          "publicDiscovery", "strongDiscovery", "factId"
+        ],
+        additionalProperties: false
+      }
+    },
+
+    timeline: {
+      type: "array",
+      minItems: 3,
+      maxItems: 7,
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          atMinute: {
+            type: "integer",
+            minimum: 1,
+            maximum: 43200
+          },
+          publicEvent: { type: "string" },
+          hiddenMeaning: { type: "string" }
+        },
+        required: ["id", "atMinute", "publicEvent", "hiddenMeaning"],
+        additionalProperties: false
+      }
+    },
+
+    redHerrings: {
+      type: "array",
+      minItems: 1,
+      maxItems: 4,
+      items: { type: "string" }
+    },
+
+    possibleResolutions: {
+      type: "array",
+      minItems: 3,
+      maxItems: 7,
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          hiddenCondition: { type: "string" }
+        },
+        required: ["name", "hiddenCondition"],
+        additionalProperties: false
+      }
+    },
+
+    campaignHooks: {
+      type: "array",
+      minItems: 0,
+      maxItems: 4,
+      items: { type: "string" }
+    }
+  },
+
+  required: [
+    "title", "era", "startDateTime", "region", "openingHook", "hiddenTruth",
+    "threat", "antagonistGoal", "deadlineMinutes", "startLocationId",
+    "facts", "locations", "npcs", "clues", "timeline",
+    "redHerrings", "possibleResolutions", "campaignHooks"
+  ],
+
+  additionalProperties: false
+};
+
+function mysteryLocationById(id) {
+  return game.mystery?.locations?.find(location => location.id === id) || null;
+}
+
+function currentMysteryLocation() {
+  return mysteryLocationById(game.currentLocationId);
+}
+
+function visibleNpcsHere() {
+  if (!game.mystery) return [];
+  return game.mystery.npcs.filter(
+    npc => npc.locationId === game.currentLocationId
+  );
+}
+
+function visibleObjectsHere() {
+  return currentMysteryLocation()?.objects || [];
+}
+
+function exitLocationsHere() {
+  const current = currentMysteryLocation();
+  if (!current || !game.mystery) return [];
+
+  return current.exits
+    .map(id => mysteryLocationById(id))
+    .filter(Boolean);
+}
+
+function buildPublicScene() {
+  const location = currentMysteryLocation();
+
+  if (!location) {
+    return "No active mystery scene.";
+  }
+
+  const npcs = visibleNpcsHere();
+  const objects = visibleObjectsHere();
+  const exits = exitLocationsHere();
+
+  const lines = [
+    location.publicDescription
+  ];
+
+  if (npcs.length) {
+    lines.push(
+      `People present: ${npcs.map(n => `${n.name} (${n.role})`).join(", ")}.`
+    );
+  }
+
+  if (objects.length) {
+    lines.push(
+      `Notable things: ${objects.map(o => o.name).join(", ")}.`
+    );
+  }
+
+  if (exits.length) {
+    lines.push(
+      `You can reach: ${exits.map(l => l.name).join(", ")}.`
+    );
+  }
+
+  return lines.join("\n\n");
+}
+
+function publicActionContext() {
+  const location = currentMysteryLocation();
+
+  return {
+    caseTitle: game.mystery?.title || null,
+    location: location
+      ? {
+          id: location.id,
+          name: location.name,
+          description: location.publicDescription
+        }
+      : null,
+    visibleObjects: visibleObjectsHere().map(object => ({
+      id: object.id,
+      name: object.name,
+      description: object.publicDescription
+    })),
+    visibleNpcs: visibleNpcsHere().map(npc => ({
+      id: npc.id,
+      name: npc.name,
+      role: npc.role,
+      description: npc.publicDescription
+    })),
+    exits: exitLocationsHere().map(location => ({
+      id: location.id,
+      name: location.name
+    })),
+    discoveredEvidence: discoveredClues().map(clue => ({
+      id: clue.id,
+      name: clue.name,
+      discovery: clue.publicDiscovery
+    })),
+    knownFacts: knownFactSummaries()
+  };
+}
+
+function validateMystery(mystery) {
+  const problems = [];
+
+  function duplicateIds(items, label) {
+    const seen = new Set();
+    for (const item of items || []) {
+      if (seen.has(item.id)) {
+        problems.push(`Duplicate ${label} ID: ${item.id}.`);
+      }
+      seen.add(item.id);
+    }
+  }
+
+  duplicateIds(mystery.locations, "location");
+  duplicateIds(mystery.npcs, "NPC");
+  duplicateIds(mystery.facts, "fact");
+  duplicateIds(mystery.clues, "clue");
+  duplicateIds(mystery.timeline, "timeline event");
+
+  const allObjects = (mystery.locations || []).flatMap(
+    location => location.objects || []
+  );
+  duplicateIds(allObjects, "object");
+
+  const locationIds = new Set((mystery.locations || []).map(x => x.id));
+  const npcIds = new Set((mystery.npcs || []).map(x => x.id));
+  const factIds = new Set((mystery.facts || []).map(x => x.id));
+  const objectIds = new Set(
+    (mystery.locations || []).flatMap(
+      location => (location.objects || []).map(object => object.id)
+    )
+  );
+
+  if (!locationIds.has(mystery.startLocationId)) {
+    problems.push(`startLocationId ${mystery.startLocationId} does not exist.`);
+  }
+
+  for (const location of mystery.locations || []) {
+    for (const exit of location.exits || []) {
+      if (!locationIds.has(exit)) {
+        problems.push(`Location ${location.id} references missing exit ${exit}.`);
+      }
+    }
+  }
+
+  for (const npc of mystery.npcs || []) {
+    if (!locationIds.has(npc.locationId)) {
+      problems.push(`NPC ${npc.id} has missing location ${npc.locationId}.`);
+    }
+  }
+
+  for (const clue of mystery.clues || []) {
+    if (!locationIds.has(clue.locationId)) {
+      problems.push(`Clue ${clue.id} has missing location ${clue.locationId}.`);
+    }
+
+    if (!factIds.has(clue.factId)) {
+      problems.push(`Clue ${clue.id} has missing fact ${clue.factId}.`);
+    }
+
+    if (clue.targetType === "object" && !objectIds.has(clue.targetId)) {
+      problems.push(`Clue ${clue.id} targets missing object ${clue.targetId}.`);
+    }
+
+    if (clue.targetType === "npc" && !npcIds.has(clue.targetId)) {
+      problems.push(`Clue ${clue.id} targets missing NPC ${clue.targetId}.`);
+    }
+
+    if (
+      clue.targetType === "scene" &&
+      clue.targetId !== clue.locationId
+    ) {
+      problems.push(
+        `Scene clue ${clue.id} should target its own location ID (${clue.locationId}).`
+      );
+    }
+  }
+
+  // Every critical fact should have at least two clues so one failure cannot
+  // permanently dead-end the case.
+  for (const fact of mystery.facts || []) {
+    if (fact.importance !== "critical") continue;
+
+    const supporting = (mystery.clues || []).filter(
+      clue => clue.factId === fact.id
+    );
+
+    if (supporting.length < 2) {
+      problems.push(
+        `Critical fact ${fact.id} has only ${supporting.length} supporting clue(s).`
+      );
+    }
+  }
+
+  const finalTimelineMinute = Math.max(
+    0,
+    ...(mystery.timeline || []).map(event => event.atMinute || 0)
+  );
+
+  if (
+    mystery.deadlineMinutes &&
+    Math.abs(finalTimelineMinute - mystery.deadlineMinutes) >
+      Math.max(30, Math.round(mystery.deadlineMinutes * 0.15))
+  ) {
+    problems.push(
+      `Timeline does not contain an event close to deadlineMinutes (${mystery.deadlineMinutes}).`
+    );
+  }
+
+  return problems;
+}
+
+function initializeMysteryState(mystery) {
+  const validationProblems = validateMystery(mystery);
+
+  game.mystery = mystery;
+  game.currentLocationId = mystery.startLocationId;
+  game.caseElapsedMinutes = 0;
+
+  const generatedStart = new Date(mystery.startDateTime);
+  if (!Number.isNaN(generatedStart.valueOf())) {
+    game.gameTime = generatedStart.toISOString();
+  }
+
+  const start = mysteryLocationById(mystery.startLocationId);
+  game.location = start?.name || mystery.region;
+  game.publicScene = buildPublicScene();
+
+  game.npcs = Object.fromEntries(
+    mystery.npcs.map(npc => [npc.id, deepClone(npc)])
+  );
+
+  game.clues = Object.fromEntries(
+    mystery.clues.map(clue => [clue.id, deepClone(clue)])
+  );
+
+  game.knowledge = {
+    clues: {},
+    facts: {}
+  };
+
+  game.mysteryRuntime = {
+    firedTimelineIds: [],
+    validationProblems,
+    generatedAt: new Date().toISOString()
+  };
+
+  // A new generated case starts a fresh scene log but preserves the investigator.
+  game.history = [];
+
+  recordDebug("mystery_generated", {
+    premise: casePremise.value.trim(),
+    validationProblems,
+    mystery: deepClone(mystery)
+  });
+
+  saveGame();
+  renderGame();
+  renderHistory();
+}
+
+async function generateCase(premise = "") {
+  if (!gameToken) {
+    caseGeneratorMessage.textContent =
+      "Connect to the OpenAI proxy before generating a case.";
+    caseGeneratorMessage.className = "help error";
+    return;
+  }
+
+  generateCaseButton.disabled = true;
+  surpriseCaseButton.disabled = true;
+  caseGeneratorMessage.textContent =
+    "Constructing hidden truth, locations, NPCs, evidence, and timeline…";
+  caseGeneratorMessage.className = "help";
+
+  try {
+    const mystery = await callStructured(
+      [
+        "You are the scenario constructor for Black Meridian, a single-player investigative horror RPG.",
+        "Generate an ORIGINAL mystery rather than retelling a published Lovecraft story or Call of Cthulhu scenario.",
+        "The scenario may use folklore, monsters, occultism, weird science, cosmic horror, isolation, conspiracy, or survival horror.",
+        "Do not default to a cult unless the premise genuinely calls for one.",
+        "Create the hidden truth FIRST, then build locations, NPC motives, clues, red herrings, and timeline from that fixed truth.",
+        "The case must be solvable by evidence rather than arbitrary revelation.",
+        "Critical facts must each have at least TWO distinct clues.",
+        "Core clues should be distributed across different targets or approaches whenever possible.",
+        "Use stable simple IDs: loc_1, loc_2; obj_1; npc_1; fact_1; clue_1; event_1.",
+        "Set startDateTime to a valid ISO 8601 date/time appropriate to the scenario, normally in the 1920s or 1930s unless the player's premise specifies another era.",
+        "At least one timeline event should occur at or very near deadlineMinutes so the deadline has a concrete fictional consequence.",
+        "Every exit ID, target ID, location ID, and fact ID must reference an object that actually exists in the generated structure.",
+        "Scene-targeted clues use targetType 'scene' and targetId equal to their locationId.",
+        "NPC-targeted clues may represent testimony, behavior, contradiction, or information obtained through conversation.",
+        "Objects named in clues must be present in that location's objects array.",
+        "The player begins with only the openingHook and public starting scene. Hidden fields are not automatically known.",
+        "Allow multiple resolutions: stopping, containing, escaping, rescuing, understanding, or failing.",
+        "Make the atmosphere serious and grounded rather than constantly announcing supernatural horror."
+      ].join("\n"),
+      JSON.stringify({
+        premise:
+          premise ||
+          "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game.",
+        desiredScale: {
+          locations: "4–6",
+          npcs: "4–7",
+          clues: "10–16",
+          timelineEvents: "3–6"
+        }
+      }),
+      "black_meridian_mystery",
+      MYSTERY_SCHEMA,
+      {
+        effort: "medium",
+        maxTokens: 7000
+      }
+    );
+
+    const problems = validateMystery(mystery);
+
+    if (problems.length > 8) {
+      recordDebug("mystery_generation_rejected", {
+        problems,
+        mystery
+      });
+
+      throw new Error(
+        `Generated case failed structural validation (${problems.length} issues). Generate again.`
+      );
+    }
+
+    initializeMysteryState(mystery);
+
+    caseGeneratorMessage.textContent =
+      problems.length
+        ? `Case generated with ${problems.length} validation warning(s). The Debug Report contains them.`
+        : "Case generated successfully.";
+
+    caseGeneratorMessage.className =
+      problems.length ? "help" : "help success";
+  } catch (error) {
+    recordDebug("mystery_generation_error", {
+      premise,
+      error: String(error)
+    });
+
+    caseGeneratorMessage.textContent =
+      `Case generation failed: ${error.message}`;
+
+    caseGeneratorMessage.className = "help error";
+  } finally {
+    generateCaseButton.disabled = false;
+    surpriseCaseButton.disabled = false;
+  }
+}
+
+function discoveredClues() {
+  if (!game.mystery) return [];
+
+  return game.mystery.clues.filter(
+    clue => Boolean(game.knowledge?.clues?.[clue.id])
+  );
+}
+
+function knownFactSummaries() {
+  if (!game.mystery) return [];
+
+  return game.mystery.facts
+    .filter(fact => game.knowledge?.facts?.[fact.id])
+    .map(fact => ({
+      id: fact.id,
+      statement: fact.statement,
+      status: game.knowledge.facts[fact.id].status,
+      supportCount: game.knowledge.facts[fact.id].clueIds.length
+    }));
+}
+
+function registerClueDiscovery(clue, outcome) {
+  if (!clue || game.knowledge.clues[clue.id]) return null;
+
+  game.knowledge.clues[clue.id] = {
+    discoveredTurn: game.turn,
+    discoveredAtMinute: game.caseElapsedMinutes,
+    outcome
+  };
+
+  const existing = game.knowledge.facts[clue.factId] || {
+    clueIds: [],
+    status: "unknown"
+  };
+
+  if (!existing.clueIds.includes(clue.id)) {
+    existing.clueIds.push(clue.id);
+  }
+
+  existing.status =
+    existing.clueIds.length >= 2
+      ? "confirmed"
+      : "supported";
+
+  game.knowledge.facts[clue.factId] = existing;
+
+  recordDebug("clue_discovered", {
+    clue: deepClone(clue),
+    factState: deepClone(existing),
+    outcome
+  });
+
+  return clue;
+}
+
+function outcomeRank(outcome) {
+  return {
+    "Severe Failure": 0,
+    "Failure": 1,
+    "Mixed Result": 2,
+    "Success": 3,
+    "Strong Success": 4,
+    "Exceptional Success": 5
+  }[outcome] ?? 0;
+}
+
+function compatibleClues(interp) {
+  if (!game.mystery) return [];
+
+  return game.mystery.clues.filter(clue => {
+    if (game.knowledge.clues[clue.id]) return false;
+    if (clue.locationId !== game.currentLocationId) return false;
+
+    const sameTarget =
+      clue.targetType === interp.targetType &&
+      clue.targetId === interp.targetId;
+
+    if (!sameTarget) return false;
+
+    // Either the action classification or governing skill should match.
+    return (
+      clue.actionType === interp.actionType ||
+      clue.skill === interp.skill
+    );
+  });
+}
+
+function discoverFromAction(interp, outcome) {
+  const matches = compatibleClues(interp);
+  if (!matches.length) return [];
+
+  const rank = outcomeRank(outcome);
+
+  // Core clues are more forgiving once the player investigates the correct
+  // target in a sensible way. Optional clues require stronger outcomes.
+  const eligible = matches.filter(clue => {
+    if (clue.core) return rank >= 2;       // Mixed Result or better
+    return rank >= 3;                     // Success or better
+  });
+
+  const limit =
+    rank >= 5 ? 3 :
+    rank >= 4 ? 2 :
+    rank >= 2 ? 1 :
+    0;
+
+  return eligible
+    .sort((a, b) => Number(b.core) - Number(a.core))
+    .slice(0, limit)
+    .map(clue => registerClueDiscovery(clue, outcome))
+    .filter(Boolean);
+}
+
+function processTimelineEvents(previousMinute, currentMinute) {
+  if (!game.mystery) return [];
+
+  game.mysteryRuntime ||= {
+    firedTimelineIds: [],
+    validationProblems: [],
+    generatedAt: null
+  };
+
+  const fired = new Set(game.mysteryRuntime.firedTimelineIds || []);
+  const triggered = [];
+
+  for (const event of game.mystery.timeline || []) {
+    if (fired.has(event.id)) continue;
+
+    if (
+      event.atMinute > previousMinute &&
+      event.atMinute <= currentMinute
+    ) {
+      fired.add(event.id);
+      triggered.push(event);
+
+      recordDebug("timeline_event_triggered", {
+        event: deepClone(event),
+        previousMinute,
+        currentMinute
+      });
+    }
+  }
+
+  game.mysteryRuntime.firedTimelineIds = [...fired];
+  return triggered;
+}
+
+function renderCaseSummary() {
+  if (!game.mystery) {
+    caseSummary.style.display = "none";
+    return;
+  }
+
+  caseSummary.style.display = "grid";
+  caseTitle.textContent = game.mystery.title;
+  caseLocale.textContent =
+    `${game.mystery.region} · ${game.mystery.era}`;
+  caseElapsed.textContent =
+    `${game.caseElapsedMinutes || 0} min`;
+  evidenceCount.textContent =
+    String(discoveredClues().length);
+  caseHook.textContent =
+    game.mystery.openingHook;
+
+  knownFacts.innerHTML = "";
+  const facts = knownFactSummaries();
+
+  if (!facts.length) {
+    const li = document.createElement("li");
+    li.textContent = "No conclusions supported yet.";
+    knownFacts.appendChild(li);
+  } else {
+    for (const fact of facts) {
+      const li = document.createElement("li");
+      li.textContent =
+        `${fact.statement} — ${titleCase(fact.status)}`;
+      knownFacts.appendChild(li);
+    }
+  }
+
+  evidenceList.innerHTML = "";
+  const clues = discoveredClues();
+
+  if (!clues.length) {
+    const li = document.createElement("li");
+    li.textContent = "No evidence recorded.";
+    evidenceList.appendChild(li);
+  } else {
+    for (const clue of clues) {
+      const li = document.createElement("li");
+      li.textContent = `${clue.name}: ${clue.publicDiscovery}`;
+      evidenceList.appendChild(li);
+    }
   }
 }
 
@@ -1256,9 +2192,16 @@ const ACTION_SCHEMA = {
     actionType: {
       type: "string",
       enum: [
-        "observe", "research", "social", "stealth", "physical",
+        "move", "observe", "research", "social", "stealth", "physical",
         "combat", "medical", "technical", "escape", "other"
       ]
+    },
+    targetType: {
+      type: "string",
+      enum: ["scene", "object", "npc", "location", "none"]
+    },
+    targetId: {
+      type: ["string", "null"]
     },
     skill: {
       type: "string",
@@ -1289,7 +2232,7 @@ const ACTION_SCHEMA = {
     reason: { type: "string" }
   },
   required: [
-    "actionType", "skill", "difficulty", "risk",
+    "actionType", "targetType", "targetId", "skill", "difficulty", "risk",
     "uncertainty", "canEstimate", "estimatedMinutes", "reason"
   ],
   additionalProperties: false
@@ -1312,9 +2255,34 @@ function fatiguePenalty(actionType) {
 }
 
 function effectiveChance(interp) {
+  if (
+    interp.actionType === "move" &&
+    interp.targetType === "location" &&
+    exitLocationsHere().some(location => location.id === interp.targetId)
+  ) {
+    return 95;
+  }
+
   const base = game.character.skills[interp.skill] ?? 50;
-  const diff = DIFFICULTY[interp.difficulty] ?? 0;
-  return clamp(base + diff - fatiguePenalty(interp.actionType), 5, 95);
+
+  // If the correct target conceals evidence, use its hidden difficulty without
+  // revealing the existence or nature of that evidence to the player.
+  const hiddenMatches = compatibleClues(interp);
+
+  const difficultyName =
+    hiddenMatches.length
+      ? hiddenMatches
+          .map(clue => clue.difficulty)
+          .sort((a, b) => (DIFFICULTY[a] ?? 0) - (DIFFICULTY[b] ?? 0))[0]
+      : interp.difficulty;
+
+  const diff = DIFFICULTY[difficultyName] ?? 0;
+
+  return clamp(
+    base + diff - fatiguePenalty(interp.actionType),
+    5,
+    95
+  );
 }
 
 function confidenceBand(value) {
@@ -1344,11 +2312,15 @@ async function assessAction() {
         "Choose the one capability most directly governing the attempt.",
         "Difficulty is the apparent challenge.",
         "Risk is the seriousness of plausible failure, not its probability.",
+        "Choose targetId ONLY from the visible scene IDs supplied in the JSON.",
+        "Use targetType 'location' for movement to a listed exit, 'object' for a visible object, 'npc' for a visible person, 'scene' for a general search of the current location, and 'none' when there is no concrete target.",
+        "For targetType 'scene', use the current location ID as targetId.",
+        "If the player refers to something that is not visible in the supplied scene, use targetType 'none', targetId null, high uncertainty, and do not invent it.",
         "The reason must be short, player-facing, and contain no numeric statistics."
       ].join("\n"),
       JSON.stringify({
+        scene: publicActionContext(),
         publicScene: game.publicScene,
-        location: game.location,
         occupation: game.character.occupation,
         proposedAction: action
       }),
@@ -1385,7 +2357,7 @@ async function assessAction() {
 
     debugAssessment.textContent =
       `base=${game.character.skills[interp.skill] ?? 50} ` +
-      `effective=${chance} difficulty=${interp.difficulty}`;
+      `effective=${chance} difficulty=${interp.difficulty} target=${interp.targetType}:${interp.targetId}`;
     debugAssessment.style.display = debugToggle.checked ? "block" : "none";
 
     assessmentBox.classList.add("visible");
@@ -1454,8 +2426,16 @@ function applyGenericEffects(interp, outcome, minutes) {
     game.character.fatigue = clamp(game.character.fatigue + gain, 0, 100);
   }
 
+  const previousCaseMinute = game.caseElapsedMinutes || 0;
+
   game.gameTime = addMinutes(game.gameTime, minutes);
+  game.caseElapsedMinutes = previousCaseMinute + minutes;
   game.turn += 1;
+
+  return {
+    previousCaseMinute,
+    currentCaseMinute: game.caseElapsedMinutes
+  };
 }
 
 async function commitAction() {
@@ -1481,43 +2461,107 @@ async function commitAction() {
   const preResolutionState = {
     turn: game.turn,
     gameTime: game.gameTime,
+    caseElapsedMinutes: game.caseElapsedMinutes,
     location: game.location,
-    character: deepClone(game.character)
+    currentLocationId: game.currentLocationId,
+    character: deepClone(game.character),
+    knowledge: deepClone(game.knowledge)
   };
 
-  const roll = cryptoD100();
-  const outcome = outcomeFromRoll(chance, roll);
-  const minutes = adjustedMinutes(interp.estimatedMinutes, outcome);
+  const destination =
+    interp.actionType === "move" &&
+    interp.targetType === "location"
+      ? exitLocationsHere().find(location => location.id === interp.targetId)
+      : null;
 
-  applyGenericEffects(interp, outcome, minutes);
+  const deterministicMove = Boolean(destination);
+
+  const roll = deterministicMove ? null : cryptoD100();
+
+  const outcome = deterministicMove
+    ? "Success"
+    : outcomeFromRoll(chance, roll);
+
+  const minutes = adjustedMinutes(
+    Math.max(1, interp.estimatedMinutes || (deterministicMove ? 5 : 1)),
+    outcome
+  );
+
+  const timeState = applyGenericEffects(interp, outcome, minutes);
+
+  // Evidence discovery happens against the scene in which the action began.
+  const discoveries = deterministicMove
+    ? []
+    : discoverFromAction(interp, outcome);
+
+  if (destination) {
+    game.currentLocationId = destination.id;
+    game.location = destination.name;
+    game.publicScene = buildPublicScene();
+  }
+
+  const timelineEvents = processTimelineEvents(
+    timeState.previousCaseMinute,
+    timeState.currentCaseMinute
+  );
+
+  const discoveryPayload = discoveries.map(clue => ({
+    id: clue.id,
+    name: clue.name,
+    discovery: clue.publicDiscovery,
+    additionalContext:
+      ["Strong Success", "Exceptional Success"].includes(outcome)
+        ? clue.strongDiscovery
+        : ""
+  }));
 
   recordDebug("action_resolution", {
     action,
     interpretation: deepClone(interp),
     effectiveChance: chance,
     roll,
+    deterministicMove,
     outcome,
     elapsedMinutes: minutes,
+    discoveries: deepClone(discoveries),
+    timelineEvents: deepClone(timelineEvents),
     preResolutionState,
     postResolutionState: {
       turn: game.turn,
       gameTime: game.gameTime,
+      caseElapsedMinutes: game.caseElapsedMinutes,
       location: game.location,
-      character: deepClone(game.character)
+      currentLocationId: game.currentLocationId,
+      character: deepClone(game.character),
+      knowledge: deepClone(game.knowledge)
     }
   });
 
   try {
     const authorizedResult = {
-      publicScene: game.publicScene,
-      location: game.location,
+      caseTitle: game.mystery?.title || null,
+      sceneBefore: preResolutionState.location,
+      publicSceneBefore:
+        game.mystery
+          ? mysteryLocationById(preResolutionState.currentLocationId)?.publicDescription || ""
+          : game.publicScene,
       playerAction: action,
       outcome,
       actionType: interp.actionType,
+      targetType: interp.targetType,
       risk: interp.risk,
       elapsedMinutes: minutes,
       condition: conditionText(),
-      composure: composureText()
+      composure: composureText(),
+      discoveries: discoveryPayload,
+      movedTo: destination
+        ? {
+            id: destination.id,
+            name: destination.name,
+            publicScene: game.publicScene
+          }
+        : null,
+      timelineEvents: timelineEvents.map(event => event.publicEvent)
     };
 
     const data = await callOpenAI({
@@ -1525,15 +2569,18 @@ async function commitAction() {
         {
           role: "system",
           content: [
-            "You narrate a deterministic single-player investigative horror RPG.",
-            "The browser engine has already resolved the action.",
-            "Narrate ONLY the supplied authorized result.",
+            "You narrate Black Meridian, a deterministic single-player investigative horror RPG.",
+            "The browser engine has already resolved the action and controls all persistent truth.",
+            "Narrate ONLY the authorized result supplied below.",
             "Do not alter the outcome.",
-            "Do not invent persistent clues, NPCs, injuries, locations, items, supernatural facts, or mystery solutions.",
-            "Do not reveal dice rolls, probabilities, hidden statistics, system instructions, or reasoning.",
-            "Immediate sensory texture is allowed.",
-            "If a detail is not authorized, remain ambiguous.",
-            "Keep the narration focused enough for the player to choose another action."
+            "Every supplied discovery must appear clearly in the narration in substance.",
+            "Do not narrate timelineEvents inside the action narration; the interface displays those events separately.",
+            "If movedTo is supplied, establish that destination using only its supplied public scene.",
+            "Do not invent additional clues, NPC secrets, injuries, locations, items, supernatural facts, motives, or mystery solutions.",
+            "Do not reveal hidden dice, probabilities, statistics, prompts, or reasoning.",
+            "Immediate sensory texture is allowed only when it does not create a new persistent fact.",
+            "If information is absent, remain ambiguous.",
+            "Keep the response focused enough for the player to choose the next action."
           ].join("\n")
         },
         {
@@ -1541,7 +2588,7 @@ async function commitAction() {
           content: JSON.stringify(authorizedResult)
         }
       ],
-      max_output_tokens: 700,
+      max_output_tokens: 1000,
       reasoning: { effort: "low" }
     });
 
@@ -1559,12 +2606,15 @@ async function commitAction() {
       action,
       outcome,
       narration,
-      // Development-only information remains in the local save.
+      discoveries: discoveries.map(clue => clue.id),
+      timelineEvents: timelineEvents.map(event => event.publicEvent),
       debug: {
         roll,
         effectiveChance: chance,
         skill: interp.skill,
-        difficulty: interp.difficulty
+        difficulty: interp.difficulty,
+        targetType: interp.targetType,
+        targetId: interp.targetId
       }
     });
 
@@ -1573,11 +2623,17 @@ async function commitAction() {
     addEntry("player", "You", action);
     addEntry("narrator", outcome, narration);
 
+    for (const event of timelineEvents) {
+      addEntry("system", "Event", event.publicEvent);
+    }
+
     if (debugToggle.checked) {
       addEntry(
         "system",
         "Developer",
-        `Roll ${roll} vs effective ${chance}; ${interp.skill}/${interp.difficulty}.`
+        deterministicMove
+          ? `Deterministic move to ${destination.name}; ${minutes} minute(s).`
+          : `Roll ${roll} vs effective ${chance}; ${interp.skill}/${interp.difficulty}; target ${interp.targetType}:${interp.targetId}.`
       );
     }
 
@@ -1585,8 +2641,12 @@ async function commitAction() {
     clearAssessment();
     renderGame();
 
+    const foundText = discoveries.length
+      ? ` · ${discoveries.length} evidence item(s) found`
+      : "";
+
     actionMessage.textContent =
-      `${outcome} · ${minutes} minute(s) elapsed.`;
+      `${outcome} · ${minutes} minute(s) elapsed${foundText}.`;
   } catch (error) {
     recordDebug("narration_error", {
       action,
@@ -1596,21 +2656,34 @@ async function commitAction() {
       error: String(error)
     });
 
-    // The engine result already happened locally. Keep it authoritative even
-    // if narration fails, and record a fallback line.
-    const fallback = `${outcome}. The action is resolved, but narration failed: ${error.message}`;
+    const fallback =
+      `${outcome}. The engine resolved the action, but narration failed: ${error.message}`;
 
     game.history.push({
       turn: game.turn,
       action,
       outcome,
       narration: fallback,
-      debug: { roll, effectiveChance: chance }
+      discoveries: discoveries.map(clue => clue.id),
+      timelineEvents: timelineEvents.map(event => event.publicEvent),
+      debug: {
+        roll,
+        effectiveChance: chance,
+        targetType: interp.targetType,
+        targetId: interp.targetId
+      }
     });
 
     saveGame();
+
     addEntry("player", "You", action);
     addEntry("system", "Narration Error", fallback);
+
+    for (const event of timelineEvents) {
+      addEntry("system", "Event", event.publicEvent);
+    }
+
+    renderGame();
   } finally {
     assessButton.disabled = false;
     playerInput.disabled = false;
@@ -1663,6 +2736,15 @@ forgetButton.addEventListener("click", () => {
   setConnected(false);
   connectionMessage.textContent = "Saved GAME_TOKEN cleared from this device.";
   connectionMessage.className = "help";
+});
+
+generateCaseButton.addEventListener("click", () => {
+  generateCase(casePremise.value.trim());
+});
+
+surpriseCaseButton.addEventListener("click", () => {
+  casePremise.value = "";
+  generateCase("");
 });
 
 assessButton.addEventListener("click", assessAction);
@@ -1769,7 +2851,9 @@ recordDebug("app_start", {
   savedGameLoaded: Boolean(localStorage.getItem(SAVE_KEY)),
   gameTokenPresent: Boolean(gameToken),
   currentTurn: game.turn,
-  currentLocation: game.location
+  currentLocation: game.location,
+  activeMystery: game.mystery?.title || null,
+  discoveredClues: Object.keys(game.knowledge?.clues || {}).length
 });
 
 renderGame();
