@@ -427,7 +427,8 @@
 
             <div class="buttons">
               <button id="saveButton">Save</button>
-              <button id="exportButton">Export</button>
+              <button id="exportButton">Export Save</button>
+              <button id="debugReportButton">Debug Report</button>
               <button id="importButton">Import</button>
               <button id="resetButton">Reset</button>
             </div>
@@ -441,7 +442,7 @@
             </label>
 
             <div class="help">
-              The complete RPG engine and saves now live in the browser.
+              The complete RPG engine and saves live in the browser. Debug Report exports visible and hidden session diagnostics but never exports GAME_TOKEN or the OpenAI API key.
             </div>
           </div>
         </section>
@@ -490,7 +491,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.5.1 · Cloudflare is used only as a protected OpenAI gateway.
+      Black Meridian · Browser Engine v0.6 · Cloudflare is used only as a protected OpenAI gateway.
     </footer>
   </div>
 
@@ -508,6 +509,10 @@ const MODEL = "gpt-6-astra";
 
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
+const DEBUG_KEY = "blackMeridianDebug_v06";
+const APP_VERSION = "0.6";
+const DEBUG_REPORT_VERSION = 1;
+const MAX_DEBUG_EVENTS = 1000;
 
 // ============================================================================
 // DEFAULT BROWSER-SIDE GAME STATE
@@ -515,7 +520,7 @@ const TOKEN_KEY = "lovecraftGameToken";
 
 function newGameState() {
   return {
-    version: "0.5.1",
+    version: "0.6",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -584,6 +589,7 @@ if (gameToken) {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 let currentAssessment = null;
+let diagnosticEvents = loadDebugEvents();
 
 // ============================================================================
 // DOM
@@ -613,6 +619,305 @@ const debugAssessment = $("debugAssessment");
 const debugToggle = $("debugToggle");
 
 if (gameToken) tokenInput.value = gameToken;
+
+// ============================================================================
+// DEBUG / DIAGNOSTIC INSTRUMENTATION
+// ============================================================================
+
+function deepClone(value) {
+  try {
+    return structuredClone(value);
+  } catch {
+    return JSON.parse(JSON.stringify(value));
+  }
+}
+
+function loadDebugEvents() {
+  try {
+    const raw = localStorage.getItem(DEBUG_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistDebugEvents() {
+  try {
+    localStorage.setItem(
+      DEBUG_KEY,
+      JSON.stringify(diagnosticEvents.slice(-MAX_DEBUG_EVENTS))
+    );
+  } catch {
+    // Diagnostics must never break the game.
+  }
+}
+
+function recordDebug(type, details = {}) {
+  const event = {
+    id:
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`,
+    timestamp: new Date().toISOString(),
+    turn: game?.turn ?? null,
+    gameTime: game?.gameTime ?? null,
+    type,
+    details: deepClone(details)
+  };
+
+  diagnosticEvents.push(event);
+
+  if (diagnosticEvents.length > MAX_DEBUG_EVENTS) {
+    diagnosticEvents = diagnosticEvents.slice(-MAX_DEBUG_EVENTS);
+  }
+
+  persistDebugEvents();
+  return event;
+}
+
+function sanitizeForReport(value) {
+  // Defensive recursive sanitizer. The game state itself contains no API key,
+  // but this prevents future accidental inclusion of obvious credential fields.
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForReport);
+  }
+
+  if (value && typeof value === "object") {
+    const out = {};
+
+    for (const [key, child] of Object.entries(value)) {
+      const lowered = key.toLowerCase();
+
+      if (
+        lowered === "game_token" ||
+        lowered === "gametoken" ||
+        lowered === "token" ||
+        lowered.includes("api_key") ||
+        lowered.includes("apikey") ||
+        lowered === "authorization"
+      ) {
+        out[key] = "[REDACTED]";
+      } else {
+        out[key] = sanitizeForReport(child);
+      }
+    }
+
+    return out;
+  }
+
+  return value;
+}
+
+function captureVisibleUI() {
+  const storyEntries = Array.from(
+    document.querySelectorAll("#story .entry")
+  ).map(entry => ({
+    role:
+      entry.querySelector(".who")?.textContent?.trim() || "",
+    text:
+      entry.querySelector(".text")?.textContent?.trim() || ""
+  }));
+
+  return {
+    connectionStatus: connectionStatus.textContent,
+    connectionMessage: connectionMessage.textContent,
+    actionMessage: actionMessage.textContent,
+    playerInput: playerInput.value,
+    developerDiagnosticsEnabled: debugToggle.checked,
+    assessmentPanelVisible:
+      assessmentBox.classList.contains("visible"),
+    assessmentDisplay: {
+      confidence: confidenceDisplay.textContent,
+      risk: riskDisplay.textContent,
+      uncertainty: uncertaintyDisplay.textContent,
+      reason: assessmentReason.textContent,
+      basis: assessmentBasis.textContent,
+      developerLine: debugAssessment.textContent
+    },
+    investigatorPanel: {
+      name: $("characterName").textContent,
+      occupation: $("characterOccupation").textContent,
+      condition: $("characterCondition").textContent,
+      composure: $("characterComposure").textContent,
+      strengths: Array.from(
+        $("strengths").querySelectorAll(".tag")
+      ).map(node => node.textContent),
+      weaknesses: Array.from(
+        $("weaknesses").querySelectorAll(".tag")
+      ).map(node => node.textContent)
+    },
+    gameStatePanel: {
+      turn: $("turnDisplay").textContent,
+      time: $("timeDisplay").textContent,
+      location: $("locationDisplay").textContent
+    },
+    storyEntries
+  };
+}
+
+function browserEnvironment() {
+  return {
+    page: {
+      href: location.href,
+      origin: location.origin,
+      pathname: location.pathname
+    },
+    navigator: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      languages: navigator.languages,
+      online: navigator.onLine,
+      hardwareConcurrency: navigator.hardwareConcurrency ?? null,
+      deviceMemory: navigator.deviceMemory ?? null,
+      platform: navigator.platform ?? null
+    },
+    display: {
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      screenWidth: window.screen?.width ?? null,
+      screenHeight: window.screen?.height ?? null,
+      devicePixelRatio: window.devicePixelRatio
+    },
+    time: {
+      exportedAt: new Date().toISOString(),
+      localTime: new Date().toString(),
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      performanceTimeOrigin: performance.timeOrigin ?? null
+    }
+  };
+}
+
+function buildDebugReport() {
+  let storedSaveParsed = null;
+  let storedSaveParseError = null;
+  const rawStoredSave = localStorage.getItem(SAVE_KEY);
+
+  if (rawStoredSave) {
+    try {
+      storedSaveParsed = JSON.parse(rawStoredSave);
+    } catch (error) {
+      storedSaveParseError = String(error);
+    }
+  }
+
+  const report = {
+    report: {
+      type: "Black Meridian Full Session Debug Report",
+      reportVersion: DEBUG_REPORT_VERSION,
+      appVersion: APP_VERSION,
+      purpose:
+        "Expose visible and hidden browser-side session state, calculations, AI traffic, and runtime diagnostics for troubleshooting.",
+      securityRedactions: [
+        "GAME_TOKEN value is deliberately excluded.",
+        "OPENAI_API_KEY is unavailable to the browser and therefore cannot be exported.",
+        "Authorization headers and obvious credential-shaped fields are redacted."
+      ]
+    },
+
+    configuration: {
+      model: MODEL,
+      workerBase: WORKER_BASE,
+      openAIEndpoint: OPENAI_ENDPOINT,
+      authEndpoint: AUTH_ENDPOINT,
+      saveKey: SAVE_KEY,
+      debugKey: DEBUG_KEY
+    },
+
+    connection: {
+      gameTokenPresent: Boolean(gameToken),
+      gameTokenStoredInLocalStorage:
+        Boolean(localStorage.getItem(TOKEN_KEY)),
+      connectedUIState:
+        connectionStatus.classList.contains("connected")
+    },
+
+    browser: browserEnvironment(),
+
+    visibleUI: captureVisibleUI(),
+
+    runtime: {
+      currentAssessment: deepClone(currentAssessment),
+      currentGameStateInMemory: deepClone(game)
+    },
+
+    storage: {
+      storedGameSave: storedSaveParsed,
+      storedGameSaveParseError,
+      storedGameSaveByteLength:
+        rawStoredSave ? new Blob([rawStoredSave]).size : 0,
+      localStorageKeys: Object.keys(localStorage).map(key => ({
+        key,
+        value:
+          key === TOKEN_KEY
+            ? "[REDACTED]"
+            : key === SAVE_KEY
+              ? "[INCLUDED AS storedGameSave]"
+              : key === DEBUG_KEY
+                ? "[INCLUDED AS diagnosticEvents]"
+                : localStorage.getItem(key)
+      })),
+      sessionStorageKeys: Object.keys(sessionStorage).map(key => ({
+        key,
+        value:
+          key.toLowerCase().includes("token")
+            ? "[REDACTED]"
+            : sessionStorage.getItem(key)
+      }))
+    },
+
+    diagnosticEvents: deepClone(diagnosticEvents)
+  };
+
+  return sanitizeForReport(report);
+}
+
+function exportDebugReport() {
+  const report = buildDebugReport();
+  const json = JSON.stringify(report, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+
+  a.href = url;
+  a.download =
+    `black-meridian-debug-turn-${game.turn}-${stamp}.json`;
+
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  recordDebug("debug_report_exported", {
+    turn: game.turn,
+    reportBytes: blob.size,
+    eventCount: diagnosticEvents.length
+  });
+
+  actionMessage.textContent =
+    `Debug report exported (${diagnosticEvents.length} diagnostic events).`;
+}
+
+window.addEventListener("error", event => {
+  recordDebug("window_error", {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    error: event.error ? String(event.error) : null
+  });
+});
+
+window.addEventListener("unhandledrejection", event => {
+  recordDebug("unhandled_promise_rejection", {
+    reason: String(event.reason)
+  });
+});
 
 // ============================================================================
 // SAVE / LOAD
@@ -677,21 +982,67 @@ async function callOpenAI({
   max_output_tokens = 1200,
   text = undefined
 }) {
-  const response = await fetch(OPENAI_ENDPOINT, {
-    method: "POST",
-    headers: authHeaders({
-      "Content-Type": "application/json"
-    }),
-    body: JSON.stringify({
-      model: MODEL,
-      input,
-      reasoning,
-      max_output_tokens,
-      ...(text ? { text } : {})
-    })
+  const requestPayload = {
+    model: MODEL,
+    input,
+    reasoning,
+    max_output_tokens,
+    ...(text ? { text } : {})
+  };
+
+  const requestId =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
+
+  const started = performance.now();
+
+  recordDebug("openai_request", {
+    requestId,
+    endpoint: OPENAI_ENDPOINT,
+    payload: requestPayload
   });
 
-  const data = await response.json();
+  let response;
+
+  try {
+    response = await fetch(OPENAI_ENDPOINT, {
+      method: "POST",
+      headers: authHeaders({
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify(requestPayload)
+    });
+  } catch (error) {
+    recordDebug("openai_network_error", {
+      requestId,
+      elapsedMs: Math.round(performance.now() - started),
+      error: String(error)
+    });
+    throw error;
+  }
+
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    recordDebug("openai_invalid_json", {
+      requestId,
+      status: response.status,
+      elapsedMs: Math.round(performance.now() - started),
+      error: String(error)
+    });
+    throw error;
+  }
+
+  recordDebug("openai_response", {
+    requestId,
+    status: response.status,
+    ok: response.ok,
+    elapsedMs: Math.round(performance.now() - started),
+    response: data
+  });
 
   if (!response.ok) {
     throw new Error(
@@ -777,10 +1128,20 @@ async function connect() {
 
     localStorage.setItem(TOKEN_KEY, gameToken);
 
+    recordDebug("connection_success", {
+      workerBase: WORKER_BASE,
+      authenticated: true
+    });
+
     setConnected(true);
     connectionMessage.textContent = "Connected successfully.";
     connectionMessage.className = "help success";
   } catch (error) {
+    recordDebug("connection_failure", {
+      workerBase: WORKER_BASE,
+      error: String(error)
+    });
+
     gameToken = "";
     localStorage.removeItem(TOKEN_KEY);
     setConnected(false);
@@ -1004,6 +1365,17 @@ async function assessAction() {
       confidence: interp.canEstimate ? confidenceBand(chance) : "Unknown"
     };
 
+    recordDebug("action_assessment", {
+      action,
+      interpretation: interp,
+      baseSkill: game.character.skills[interp.skill] ?? 50,
+      effectiveChance: chance,
+      confidence: currentAssessment.confidence,
+      fatigue: game.character.fatigue,
+      publicScene: game.publicScene,
+      location: game.location
+    });
+
     confidenceDisplay.textContent = currentAssessment.confidence;
     riskDisplay.textContent = titleCase(interp.risk);
     uncertaintyDisplay.textContent = titleCase(interp.uncertainty);
@@ -1022,6 +1394,11 @@ async function assessAction() {
     actionMessage.textContent =
       "Assessment complete. Commit the action or change your approach.";
   } catch (error) {
+    recordDebug("action_assessment_error", {
+      action,
+      error: String(error)
+    });
+
     clearAssessment();
     actionMessage.textContent = `Assessment failed: ${error.message}`;
   } finally {
@@ -1100,11 +1477,35 @@ async function commitAction() {
 
   const interp = currentAssessment.interpretation;
   const chance = currentAssessment.effectiveChance;
+
+  const preResolutionState = {
+    turn: game.turn,
+    gameTime: game.gameTime,
+    location: game.location,
+    character: deepClone(game.character)
+  };
+
   const roll = cryptoD100();
   const outcome = outcomeFromRoll(chance, roll);
   const minutes = adjustedMinutes(interp.estimatedMinutes, outcome);
 
   applyGenericEffects(interp, outcome, minutes);
+
+  recordDebug("action_resolution", {
+    action,
+    interpretation: deepClone(interp),
+    effectiveChance: chance,
+    roll,
+    outcome,
+    elapsedMinutes: minutes,
+    preResolutionState,
+    postResolutionState: {
+      turn: game.turn,
+      gameTime: game.gameTime,
+      location: game.location,
+      character: deepClone(game.character)
+    }
+  });
 
   try {
     const authorizedResult = {
@@ -1146,6 +1547,13 @@ async function commitAction() {
 
     const narration = outputText(data) || `${outcome}.`;
 
+    recordDebug("narration_result", {
+      action,
+      outcome,
+      narration,
+      authorizedResult
+    });
+
     game.history.push({
       turn: game.turn,
       action,
@@ -1180,6 +1588,14 @@ async function commitAction() {
     actionMessage.textContent =
       `${outcome} · ${minutes} minute(s) elapsed.`;
   } catch (error) {
+    recordDebug("narration_error", {
+      action,
+      outcome,
+      effectiveChance: chance,
+      roll,
+      error: String(error)
+    });
+
     // The engine result already happened locally. Keep it authoritative even
     // if narration fails, and record a fallback line.
     const fallback = `${outcome}. The action is resolved, but narration failed: ${error.message}`;
@@ -1262,6 +1678,10 @@ playerInput.addEventListener("input", () => {
 debugToggle.addEventListener("change", () => {
   debugAssessment.style.display =
     debugToggle.checked && currentAssessment ? "block" : "none";
+
+  recordDebug("developer_diagnostics_toggled", {
+    enabled: debugToggle.checked
+  });
 });
 
 clearButton.addEventListener("click", () => {
@@ -1274,7 +1694,15 @@ $("saveButton").addEventListener("click", () => {
   actionMessage.textContent = "Saved locally.";
 });
 
-$("exportButton").addEventListener("click", exportGame);
+$("exportButton").addEventListener("click", () => {
+  recordDebug("save_exported", {
+    turn: game.turn,
+    historyCount: game.history?.length || 0
+  });
+  exportGame();
+});
+
+$("debugReportButton").addEventListener("click", exportDebugReport);
 
 $("importButton").addEventListener("click", () => {
   $("importFile").click();
@@ -1286,8 +1714,18 @@ $("importFile").addEventListener("change", async event => {
 
   try {
     await importGameFile(file);
+    recordDebug("save_imported", {
+      fileName: file.name,
+      fileSize: file.size,
+      turn: game.turn
+    });
     actionMessage.textContent = "Save imported.";
   } catch (error) {
+    recordDebug("save_import_error", {
+      fileName: file.name,
+      fileSize: file.size,
+      error: String(error)
+    });
     actionMessage.textContent = `Import failed: ${error.message}`;
   }
 
@@ -1297,7 +1735,13 @@ $("importFile").addEventListener("change", async event => {
 $("resetButton").addEventListener("click", () => {
   if (!confirm("Reset the local Lovecraft RPG save?")) return;
 
+  const priorTurn = game.turn;
   game = newGameState();
+  diagnosticEvents = [];
+  persistDebugEvents();
+  recordDebug("game_reset", {
+    priorTurn
+  });
   saveGame();
   renderHistory();
   clearAssessment();
@@ -1319,6 +1763,14 @@ playerInput.addEventListener("keydown", event => {
 // ============================================================================
 // STARTUP
 // ============================================================================
+
+recordDebug("app_start", {
+  appVersion: APP_VERSION,
+  savedGameLoaded: Boolean(localStorage.getItem(SAVE_KEY)),
+  gameTokenPresent: Boolean(gameToken),
+  currentTurn: game.turn,
+  currentLocation: game.location
+});
 
 renderGame();
 renderHistory();
