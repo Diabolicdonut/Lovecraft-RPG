@@ -480,6 +480,7 @@
 
             <div id="caseSummary" class="case-summary" style="display:none">
               <div><strong>Case:</strong> <span id="caseTitle"></span></div>
+              <div><strong>Premise:</strong> <span id="casePremiseUsed"></span></div>
               <div><strong>Locale:</strong> <span id="caseLocale"></span></div>
               <div><strong>Elapsed:</strong> <span id="caseElapsed"></span></div>
               <div>
@@ -578,7 +579,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.7 · Mystery Engine v0.1
+      Black Meridian · Browser Engine v0.7.1 · Mystery Engine v0.1
     </footer>
   </div>
 
@@ -597,7 +598,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.7";
+const APP_VERSION = "0.7.1";
 const DEBUG_REPORT_VERSION = 1;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -607,7 +608,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.7",
+    version: "0.7.1",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -655,6 +656,7 @@ function newGameState() {
     },
 
     mystery: null,
+    mysterySource: null,
     campaign: null,
     npcs: {},
     clues: {},
@@ -694,6 +696,10 @@ function migrateGameState(state) {
   state.clues ||= {};
   state.inventory ||= [];
   state.relationships ||= {};
+
+  if (!("mysterySource" in state)) {
+    state.mysterySource = null;
+  }
 
   if (state.mystery && !state.mysteryRuntime) {
     state.mysteryRuntime = {
@@ -739,6 +745,7 @@ const surpriseCaseButton = $("surpriseCaseButton");
 const caseGeneratorMessage = $("caseGeneratorMessage");
 const caseSummary = $("caseSummary");
 const caseTitle = $("caseTitle");
+const casePremiseUsed = $("casePremiseUsed");
 const caseLocale = $("caseLocale");
 const caseElapsed = $("caseElapsed");
 const evidenceCount = $("evidenceCount");
@@ -940,6 +947,65 @@ function browserEnvironment() {
   };
 }
 
+
+async function saveTextFile(filename, text, mimeType = "application/json") {
+  const blob = new Blob([text], { type: mimeType });
+
+  // Prefer a real Save As dialog on Chromium/Edge when available.
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [
+          {
+            description: "JSON file",
+            accept: {
+              [mimeType]: [".json"]
+            }
+          }
+        ]
+      });
+
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+
+      return { method: "file-picker", bytes: blob.size };
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return { method: "cancelled", bytes: blob.size };
+      }
+
+      recordDebug("file_picker_fallback", {
+        filename,
+        error: String(error)
+      });
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  a.style.display = "none";
+
+  document.body.appendChild(a);
+  a.click();
+
+  // Delay cleanup. Immediate URL revocation can cancel a download in
+  // some browser/version combinations.
+  setTimeout(() => {
+    try {
+      URL.revokeObjectURL(url);
+      a.remove();
+    } catch {}
+  }, 30000);
+
+  return { method: "blob-download", bytes: blob.size };
+}
+
 function buildDebugReport() {
   let storedSaveParsed = null;
   let storedSaveParseError = null;
@@ -990,6 +1056,7 @@ function buildDebugReport() {
 
     runtime: {
       currentAssessment: deepClone(currentAssessment),
+      mysterySource: deepClone(game.mysterySource),
       currentGameStateInMemory: deepClone(game)
     },
 
@@ -1024,34 +1091,72 @@ function buildDebugReport() {
   return sanitizeForReport(report);
 }
 
-function exportDebugReport() {
-  const report = buildDebugReport();
-  const json = JSON.stringify(report, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+async function exportDebugReport() {
+  try {
+    recordDebug("debug_report_export_requested", {
+      turn: game.turn,
+      eventCountBeforeExport: diagnosticEvents.length
+    });
 
-  const stamp = new Date()
-    .toISOString()
-    .replace(/[:.]/g, "-");
+    const report = buildDebugReport();
+    const json = JSON.stringify(report, null, 2);
 
-  a.href = url;
-  a.download =
-    `black-meridian-debug-turn-${game.turn}-${stamp}.json`;
+    const stamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-");
 
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+    const filename =
+      `black-meridian-debug-turn-${game.turn}-${stamp}.json`;
 
-  recordDebug("debug_report_exported", {
-    turn: game.turn,
-    reportBytes: blob.size,
-    eventCount: diagnosticEvents.length
-  });
+    const result = await saveTextFile(
+      filename,
+      json,
+      "application/json"
+    );
 
-  actionMessage.textContent =
-    `Debug report exported (${diagnosticEvents.length} diagnostic events).`;
+    if (result.method === "cancelled") {
+      actionMessage.textContent = "Debug report export cancelled.";
+      return;
+    }
+
+    recordDebug("debug_report_exported", {
+      turn: game.turn,
+      reportBytes: result.bytes,
+      method: result.method,
+      eventCount: diagnosticEvents.length
+    });
+
+    actionMessage.textContent =
+      `Debug report exported (${diagnosticEvents.length} diagnostic events).`;
+  } catch (error) {
+    recordDebug("debug_report_export_error", {
+      turn: game.turn,
+      error: String(error),
+      stack: error?.stack || null
+    });
+
+    actionMessage.textContent =
+      `Debug report export failed: ${error.message || error}`;
+
+    // Last-resort fallback: open the JSON as plain text in a new tab.
+    try {
+      const fallbackReport =
+        JSON.stringify(buildDebugReport(), null, 2);
+
+      const fallbackBlob = new Blob(
+        [fallbackReport],
+        { type: "text/plain;charset=utf-8" }
+      );
+
+      const fallbackUrl = URL.createObjectURL(fallbackBlob);
+      window.open(fallbackUrl, "_blank", "noopener");
+
+      setTimeout(
+        () => URL.revokeObjectURL(fallbackUrl),
+        60000
+      );
+    } catch {}
+  }
 }
 
 window.addEventListener("error", event => {
@@ -1420,6 +1525,80 @@ function renderHistory() {
 // ============================================================================
 // MYSTERY ENGINE v0.1
 // ============================================================================
+
+
+const PREMISE_CONTRACT_SCHEMA = {
+  type: "object",
+  properties: {
+    normalizedPremise: { type: "string" },
+    mandatoryElements: {
+      type: "array",
+      minItems: 1,
+      maxItems: 12,
+      items: { type: "string" }
+    },
+    settingRequirements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    threatRequirements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    situationRequirements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    },
+    flexibleElements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: { type: "string" }
+    }
+  },
+  required: [
+    "normalizedPremise",
+    "mandatoryElements",
+    "settingRequirements",
+    "threatRequirements",
+    "situationRequirements",
+    "flexibleElements"
+  ],
+  additionalProperties: false
+};
+
+const PREMISE_MATCH_SCHEMA = {
+  type: "object",
+  properties: {
+    matchesPremise: { type: "boolean" },
+    missingRequirements: {
+      type: "array",
+      minItems: 0,
+      maxItems: 12,
+      items: { type: "string" }
+    },
+    contradictions: {
+      type: "array",
+      minItems: 0,
+      maxItems: 12,
+      items: { type: "string" }
+    },
+    explanation: { type: "string" }
+  },
+  required: [
+    "matchesPremise",
+    "missingRequirements",
+    "contradictions",
+    "explanation"
+  ],
+  additionalProperties: false
+};
 
 const MYSTERY_SCHEMA = {
   type: "object",
@@ -1893,6 +2072,89 @@ function initializeMysteryState(mystery) {
   renderHistory();
 }
 
+
+async function createPremiseContract(originalPremise) {
+  const explicitPremise = originalPremise.trim();
+
+  if (!explicitPremise) {
+    return {
+      normalizedPremise:
+        "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game.",
+      mandatoryElements: [
+        "An original compact investigative horror mystery."
+      ],
+      settingRequirements: [],
+      threatRequirements: [],
+      situationRequirements: [],
+      flexibleElements: [
+        "Specific setting, threat, and circumstances may be chosen freely."
+      ]
+    };
+  }
+
+  return await callStructured(
+    [
+      "You convert a player's scenario premise into a BINDING design contract.",
+      "Preserve every explicit noun, creature, setting, weather condition, time constraint, social situation, and scenario frame the player supplied.",
+      "Do not replace an explicit monster with a different monster.",
+      "Do not replace an explicit location type with another setting.",
+      "Do not reinterpret an isolated mansion during a blizzard as a town, ship, hospital, island, hotel, or other location.",
+      "Do not add requirements the player did not state.",
+      "Separate mandatory content from elements the scenario constructor may invent freely.",
+      "Return only requirements that can be checked against a generated case."
+    ].join("\n"),
+    JSON.stringify({
+      playerPremise: explicitPremise
+    }),
+    "black_meridian_premise_contract",
+    PREMISE_CONTRACT_SCHEMA,
+    {
+      effort: "low",
+      maxTokens: 1000
+    }
+  );
+}
+
+async function validatePremiseMatch(
+  originalPremise,
+  contract,
+  mystery
+) {
+  if (!originalPremise.trim()) {
+    return {
+      matchesPremise: true,
+      missingRequirements: [],
+      contradictions: [],
+      explanation:
+        "Surprise Me has no player-specified premise to enforce."
+    };
+  }
+
+  return await callStructured(
+    [
+      "You are a strict QA validator for a procedural investigative-horror scenario.",
+      "Determine whether the generated case actually implements the player's premise.",
+      "The premise contract is binding.",
+      "A superficial thematic similarity is NOT enough.",
+      "Every mandatory element must be materially present in the hidden truth, setting, opening situation, locations, NPCs, clues, or timeline.",
+      "If the player asked for werewolves, a different beast or generic occult threat fails.",
+      "If the player asked for survivors trapped in an isolated mansion during a blizzard, a village, hotel, ship, ordinary house, or merely cold weather fails.",
+      "Do not judge literary quality; judge premise fidelity only."
+    ].join("\n"),
+    JSON.stringify({
+      originalPremise,
+      premiseContract: contract,
+      generatedCase: mystery
+    }),
+    "black_meridian_premise_match",
+    PREMISE_MATCH_SCHEMA,
+    {
+      effort: "low",
+      maxTokens: 1000
+    }
+  );
+}
+
 async function generateCase(premise = "") {
   if (!gameToken) {
     caseGeneratorMessage.textContent =
@@ -1901,79 +2163,188 @@ async function generateCase(premise = "") {
     return;
   }
 
+  const originalPremise = premise.trim();
+
   generateCaseButton.disabled = true;
   surpriseCaseButton.disabled = true;
+
   caseGeneratorMessage.textContent =
-    "Constructing hidden truth, locations, NPCs, evidence, and timeline…";
+    originalPremise
+      ? "Locking the requested premise before case construction…"
+      : "Constructing a surprise hidden case…";
+
   caseGeneratorMessage.className = "help";
 
   try {
-    const mystery = await callStructured(
-      [
-        "You are the scenario constructor for Black Meridian, a single-player investigative horror RPG.",
-        "Generate an ORIGINAL mystery rather than retelling a published Lovecraft story or Call of Cthulhu scenario.",
-        "The scenario may use folklore, monsters, occultism, weird science, cosmic horror, isolation, conspiracy, or survival horror.",
-        "Do not default to a cult unless the premise genuinely calls for one.",
-        "Create the hidden truth FIRST, then build locations, NPC motives, clues, red herrings, and timeline from that fixed truth.",
-        "The case must be solvable by evidence rather than arbitrary revelation.",
-        "Critical facts must each have at least TWO distinct clues.",
-        "Core clues should be distributed across different targets or approaches whenever possible.",
-        "Use stable simple IDs: loc_1, loc_2; obj_1; npc_1; fact_1; clue_1; event_1.",
-        "Set startDateTime to a valid ISO 8601 date/time appropriate to the scenario, normally in the 1920s or 1930s unless the player's premise specifies another era.",
-        "At least one timeline event should occur at or very near deadlineMinutes so the deadline has a concrete fictional consequence.",
-        "Every exit ID, target ID, location ID, and fact ID must reference an object that actually exists in the generated structure.",
-        "Scene-targeted clues use targetType 'scene' and targetId equal to their locationId.",
-        "NPC-targeted clues may represent testimony, behavior, contradiction, or information obtained through conversation.",
-        "Objects named in clues must be present in that location's objects array.",
-        "The player begins with only the openingHook and public starting scene. Hidden fields are not automatically known.",
-        "Allow multiple resolutions: stopping, containing, escaping, rescuing, understanding, or failing.",
-        "Make the atmosphere serious and grounded rather than constantly announcing supernatural horror."
-      ].join("\n"),
-      JSON.stringify({
-        premise:
-          premise ||
-          "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game.",
-        desiredScale: {
-          locations: "4–6",
-          npcs: "4–7",
-          clues: "10–16",
-          timelineEvents: "3–6"
+    const contract =
+      await createPremiseContract(originalPremise);
+
+    recordDebug("premise_contract_created", {
+      originalPremise,
+      contract
+    });
+
+    let mystery = null;
+    let premiseQA = null;
+    let problems = [];
+    let previousFailure = null;
+
+    const maxAttempts = originalPremise ? 2 : 1;
+
+    for (
+      let attempt = 1;
+      attempt <= maxAttempts;
+      attempt++
+    ) {
+      caseGeneratorMessage.textContent =
+        originalPremise
+          ? `Constructing case from the locked premise (attempt ${attempt}/${maxAttempts})…`
+          : "Constructing hidden truth, locations, NPCs, evidence, and timeline…";
+
+      const candidate = await callStructured(
+        [
+          "You are the scenario constructor for Black Meridian, a single-player investigative horror RPG.",
+          "",
+          "THE PLAYER'S PREMISE IS BINDING.",
+          "Do not substitute a different monster, location, weather condition, era, situation, or scenario frame for anything the player explicitly requested.",
+          "Every item in premiseContract.mandatoryElements must materially exist in the generated scenario.",
+          "The premise is the foundation of the case, not loose inspiration.",
+          "",
+          "Generate an ORIGINAL mystery rather than retelling a published Lovecraft story or Call of Cthulhu scenario.",
+          "Use folklore, monsters, occultism, weird science, cosmic horror, isolation, conspiracy, or survival horror only as appropriate to the requested premise.",
+          "Do not default to a cult unless the premise genuinely calls for one.",
+          "Create the hidden truth FIRST, then build locations, NPC motives, clues, red herrings, and timeline from that fixed truth.",
+          "The case must be solvable by evidence rather than arbitrary revelation.",
+          "Critical facts must each have at least TWO distinct clues.",
+          "Core clues should be distributed across different targets or approaches whenever possible.",
+          "Use stable simple IDs: loc_1, loc_2; obj_1; npc_1; fact_1; clue_1; event_1.",
+          "Set startDateTime to a valid ISO 8601 date/time appropriate to the scenario, normally in the 1920s or 1930s unless the player's premise specifies another era.",
+          "At least one timeline event should occur at or very near deadlineMinutes so the deadline has a concrete fictional consequence.",
+          "Every exit ID, target ID, location ID, and fact ID must reference an object that actually exists in the generated structure.",
+          "Scene-targeted clues use targetType 'scene' and targetId equal to their locationId.",
+          "NPC-targeted clues may represent testimony, behavior, contradiction, or information obtained through conversation.",
+          "Objects named in clues must be present in that location's objects array.",
+          "The player begins with only the openingHook and public starting scene. Hidden fields are not automatically known.",
+          "Allow multiple resolutions: stopping, containing, escaping, rescuing, understanding, or failing.",
+          "Make the atmosphere serious and grounded rather than constantly announcing supernatural horror.",
+          previousFailure
+            ? "A previous attempt failed QA. Correct every listed problem instead of repeating it."
+            : ""
+        ].filter(Boolean).join("\n"),
+        JSON.stringify({
+          originalPremise:
+            originalPremise ||
+            "Surprise me with an original compact investigative horror mystery suitable for a 2–5 hour solo game.",
+          premiseContract: contract,
+          previousFailure,
+          desiredScale: {
+            locations: "4–6",
+            npcs: "4–7",
+            clues: "10–16",
+            timelineEvents: "3–6"
+          }
+        }),
+        "black_meridian_mystery",
+        MYSTERY_SCHEMA,
+        {
+          effort: "medium",
+          maxTokens: 7000
         }
-      }),
-      "black_meridian_mystery",
-      MYSTERY_SCHEMA,
-      {
-        effort: "medium",
-        maxTokens: 7000
+      );
+
+      problems = validateMystery(candidate);
+
+      if (problems.length > 8) {
+        recordDebug("mystery_generation_rejected", {
+          attempt,
+          originalPremise,
+          contract,
+          problems,
+          mystery: candidate
+        });
+
+        previousFailure = {
+          reason: "structural_validation",
+          problems
+        };
+
+        continue;
       }
-    );
 
-    const problems = validateMystery(mystery);
+      premiseQA = await validatePremiseMatch(
+        originalPremise,
+        contract,
+        candidate
+      );
 
-    if (problems.length > 8) {
-      recordDebug("mystery_generation_rejected", {
-        problems,
-        mystery
+      recordDebug("premise_match_validation", {
+        attempt,
+        originalPremise,
+        contract,
+        result: premiseQA
       });
 
+      if (premiseQA.matchesPremise) {
+        mystery = candidate;
+        break;
+      }
+
+      previousFailure = {
+        reason: "premise_mismatch",
+        missingRequirements:
+          premiseQA.missingRequirements,
+        contradictions:
+          premiseQA.contradictions,
+        explanation:
+          premiseQA.explanation
+      };
+
+      recordDebug("mystery_premise_rejected", {
+        attempt,
+        originalPremise,
+        contract,
+        premiseQA,
+        mystery: candidate
+      });
+    }
+
+    if (!mystery) {
+      const details =
+        previousFailure?.missingRequirements?.length
+          ? ` Missing: ${previousFailure.missingRequirements.join("; ")}`
+          : "";
+
       throw new Error(
-        `Generated case failed structural validation (${problems.length} issues). Generate again.`
+        "The scenario generator could not produce a case that matched the requested premise." +
+        details
       );
     }
+
+    game.mysterySource = {
+      originalPremise:
+        originalPremise || "Surprise Me",
+      premiseContract: deepClone(contract),
+      premiseValidation: deepClone(premiseQA)
+    };
 
     initializeMysteryState(mystery);
 
     caseGeneratorMessage.textContent =
       problems.length
-        ? `Case generated with ${problems.length} validation warning(s). The Debug Report contains them.`
-        : "Case generated successfully.";
+        ? `Case generated from the requested premise with ${problems.length} structural warning(s).`
+        : originalPremise
+          ? "Case generated and verified against the requested premise."
+          : "Surprise case generated successfully.";
 
     caseGeneratorMessage.className =
-      problems.length ? "help" : "help success";
+      problems.length
+        ? "help"
+        : "help success";
   } catch (error) {
     recordDebug("mystery_generation_error", {
-      premise,
-      error: String(error)
+      premise: originalPremise,
+      error: String(error),
+      stack: error?.stack || null
     });
 
     caseGeneratorMessage.textContent =
@@ -2141,6 +2512,8 @@ function renderCaseSummary() {
 
   caseSummary.style.display = "grid";
   caseTitle.textContent = game.mystery.title;
+  casePremiseUsed.textContent =
+    game.mysterySource?.originalPremise || "Unknown";
   caseLocale.textContent =
     `${game.mystery.region} · ${game.mystery.era}`;
   caseElapsed.textContent =
@@ -2784,7 +3157,9 @@ $("exportButton").addEventListener("click", () => {
   exportGame();
 });
 
-$("debugReportButton").addEventListener("click", exportDebugReport);
+$("debugReportButton").addEventListener("click", () => {
+  exportDebugReport();
+});
 
 $("importButton").addEventListener("click", () => {
   $("importFile").click();
