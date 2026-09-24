@@ -2,25 +2,104 @@
 
 ## Current Build
 
-**Version:** 0.8  
+**Version:** 0.8.1  
 **Mystery Engine:** v0.2  
 **Architecture:** Browser-side game engine with Cloudflare used only as a protected OpenAI proxy.
 
-## Purpose of This File
+---
 
-This file is intended to travel with `index.html` for every future Black Meridian update.
+# v0.8.1 — Structured Output Schema Hotfix
 
-It records:
+## Bug Fixed: Scenario Generation Could Not Start
 
-- version changes
-- fixes
-- newly implemented systems
-- behavior changes
-- validation performed
-- known limitations
-- recommended next development steps
+The v0.8 mystery schema added these NPC properties:
 
-Future builds should update this file rather than replacing it with an unrelated summary.
+- `publicRole`
+- `knownAtStart`
+
+However, the same NPC schema's `required` array still contained the old field:
+
+- `role`
+
+and omitted:
+
+- `publicRole`
+- `knownAtStart`
+
+OpenAI strict Structured Outputs require every property in an object schema to appear in that object's `required` array.
+
+As a result, the Responses API rejected the mystery schema before scenario generation began.
+
+### Corrected NPC schema
+
+The NPC object now requires:
+
+- `id`
+- `name`
+- `publicRole`
+- `knownAtStart`
+- `locationId`
+- `publicDescription`
+- `secret`
+- `motive`
+- `knowledge`
+
+The obsolete `role` requirement has been removed.
+
+## Added: Local Structured-Schema Preflight
+
+A new browser-side validator now checks Structured Output schemas before an OpenAI request is made.
+
+It verifies that, for every object schema:
+
+- every key in `properties` appears in `required`
+- `required` does not contain nonexistent property names
+- nested object and array schemas are recursively checked
+
+If a future edit creates the same type of mismatch, Black Meridian will now produce a local diagnostic error before sending the invalid request to OpenAI.
+
+## Added: Startup Schema Self-Test
+
+On application startup the browser now validates:
+
+- `ACTION_SCHEMA`
+- `PREMISE_CONTRACT_SCHEMA`
+- `PREMISE_MATCH_SCHEMA`
+- `CASE_COHERENCE_SCHEMA`
+- `MYSTERY_SCHEMA`
+
+The result is recorded in the debug event stream as:
+
+`structured_schema_self_test`
+
+A successful build should report `passed: true`.
+
+## Diagnostics
+
+The exact v0.8 failure was not a model-generation failure or a Cloudflare failure.
+
+The premise-contract request completed successfully. The subsequent mystery-generation request received HTTP 400 because the supplied JSON Schema was invalid.
+
+No Worker changes are required.
+
+## Validation Performed
+
+- JavaScript syntax check: PASS
+- NPC required/property consistency check: PASS
+- obsolete `role` requirement regression check: PASS
+- local schema-preflight implementation check: PASS
+- startup schema-self-test implementation check: PASS
+
+## Recommended Test
+
+After replacing `index.html`:
+
+1. Reload Black Meridian.
+2. Confirm it auto-connects.
+3. Generate:
+   `Werewolf - survivors trapped in an isolated mansion overnight by a blizzard.`
+4. If generation fails, export a Debug Report.
+5. In the report, look for `structured_schema_self_test`; it should show `passed: true`.
 
 ---
 

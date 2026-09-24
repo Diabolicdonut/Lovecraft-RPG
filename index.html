@@ -584,7 +584,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.8 · Mystery Engine v0.2
+      Black Meridian · Browser Engine v0.8.1 · Mystery Engine v0.2
     </footer>
   </div>
 
@@ -603,7 +603,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.8";
+const APP_VERSION = "0.8.1";
 const DEBUG_REPORT_VERSION = 3;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -613,7 +613,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.8",
+    version: "0.8.1",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -733,7 +733,7 @@ function migrateGameState(state) {
   const legacyNpcModel =
     state.mystery && mysteryUsesLegacyNpcModel(state.mystery);
 
-  state.version = "0.8";
+  state.version = "0.8.1";
 
   if (!("currentLocationId" in state)) {
     state.currentLocationId = state.mystery?.startLocationId || null;
@@ -1469,7 +1469,78 @@ function outputText(data) {
   return text.trim();
 }
 
+
+function validateStrictSchemaDefinition(schema, path = "$") {
+  const problems = [];
+
+  function visit(node, currentPath) {
+    if (!node || typeof node !== "object") return;
+
+    if (node.type === "object" && node.properties) {
+      const propertyKeys = Object.keys(node.properties);
+      const required = Array.isArray(node.required)
+        ? node.required
+        : [];
+
+      const missing = propertyKeys.filter(
+        key => !required.includes(key)
+      );
+
+      const unknown = required.filter(
+        key => !propertyKeys.includes(key)
+      );
+
+      if (missing.length) {
+        problems.push(
+          `${currentPath}: required is missing properties: ${missing.join(", ")}`
+        );
+      }
+
+      if (unknown.length) {
+        problems.push(
+          `${currentPath}: required contains unknown properties: ${unknown.join(", ")}`
+        );
+      }
+
+      for (const [key, child] of Object.entries(node.properties)) {
+        visit(child, `${currentPath}.properties.${key}`);
+      }
+    }
+
+    if (node.items) {
+      visit(node.items, `${currentPath}.items`);
+    }
+
+    for (const combinator of ["anyOf", "oneOf", "allOf"]) {
+      if (Array.isArray(node[combinator])) {
+        node[combinator].forEach((child, index) => {
+          visit(child, `${currentPath}.${combinator}[${index}]`);
+        });
+      }
+    }
+  }
+
+  visit(schema, path);
+
+  return problems;
+}
+
 async function callStructured(system, user, name, schema, options = {}) {
+  const schemaProblems =
+    validateStrictSchemaDefinition(schema, name);
+
+  if (schemaProblems.length) {
+    recordDebug("structured_schema_preflight_error", {
+      name,
+      problems: schemaProblems
+    });
+
+    throw new Error(
+      `Local structured schema validation failed for ${name}: ` +
+      schemaProblems.join(" | ")
+    );
+  }
+
   const maxAttempts = options.attempts || 2;
   let lastError = null;
 
@@ -1952,7 +2023,7 @@ const MYSTERY_SCHEMA = {
           }
         },
         required: [
-          "id", "name", "role", "locationId",
+          "id", "name", "publicRole", "knownAtStart", "locationId",
           "publicDescription", "secret", "motive", "knowledge"
         ],
         additionalProperties: false
@@ -3808,6 +3879,36 @@ if (game.mystery) {
   game.publicScene = buildPublicScene();
   saveGame();
 }
+
+const structuredSchemaSelfTest = {
+  action: validateStrictSchemaDefinition(
+    ACTION_SCHEMA,
+    "ACTION_SCHEMA"
+  ),
+  premiseContract: validateStrictSchemaDefinition(
+    PREMISE_CONTRACT_SCHEMA,
+    "PREMISE_CONTRACT_SCHEMA"
+  ),
+  premiseMatch: validateStrictSchemaDefinition(
+    PREMISE_MATCH_SCHEMA,
+    "PREMISE_MATCH_SCHEMA"
+  ),
+  caseCoherence: validateStrictSchemaDefinition(
+    CASE_COHERENCE_SCHEMA,
+    "CASE_COHERENCE_SCHEMA"
+  ),
+  mystery: validateStrictSchemaDefinition(
+    MYSTERY_SCHEMA,
+    "MYSTERY_SCHEMA"
+  )
+};
+
+recordDebug("structured_schema_self_test", {
+  passed:
+    Object.values(structuredSchemaSelfTest)
+      .every(problems => problems.length === 0),
+  results: structuredSchemaSelfTest
+});
 
 recordDebug("app_start", {
   appVersion: APP_VERSION,
