@@ -490,7 +490,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.5 · Cloudflare is used only as a protected OpenAI gateway.
+      Black Meridian · Browser Engine v0.5.1 · Cloudflare is used only as a protected OpenAI gateway.
     </footer>
   </div>
 
@@ -515,7 +515,7 @@ const TOKEN_KEY = "lovecraftGameToken";
 
 function newGameState() {
   return {
-    version: "0.5",
+    version: "0.5.1",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -572,7 +572,17 @@ function newGameState() {
 }
 
 let game = loadGame() || newGameState();
-let gameToken = localStorage.getItem(TOKEN_KEY) || "";
+// Persist GAME_TOKEN across reloads and GitHub updates.
+// Also migrate the older prototype's sessionStorage token automatically.
+let gameToken =
+  localStorage.getItem(TOKEN_KEY) ||
+  sessionStorage.getItem(TOKEN_KEY) ||
+  "";
+
+if (gameToken) {
+  localStorage.setItem(TOKEN_KEY, gameToken);
+  sessionStorage.removeItem(TOKEN_KEY);
+}
 let currentAssessment = null;
 
 // ============================================================================
