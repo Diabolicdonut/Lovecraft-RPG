@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Lovecraft RPG</title>
+  <style>
+    :root {
+      --bg: #0c0f12;
+      --panel: #14191d;
+      --panel-2: #101418;
+      --border: #2b343b;
+      --text: #e8e4d8;
+      --muted: #9da5a9;
+      --accent: #b8a978;
+      --accent-2: #d3c79e;
+      --danger: #d78282;
+      --success: #8eb69a;
+      --shadow: 0 14px 40px rgba(0,0,0,.32);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top, rgba(184,169,120,.07), transparent 38rem),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.55 Georgia, "Times New Roman", serif;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1100px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 18px;
+    }
+
+    h1, h2, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 4px;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 500;
+      letter-spacing: .04em;
+    }
+
+    .subtitle, .muted {
+      color: var(--muted);
+    }
+
+    .status {
+      white-space: nowrap;
+      padding: 7px 11px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      border-radius: 999px;
+      color: var(--muted);
+      font: 13px/1.2 system-ui, sans-serif;
+    }
+
+    .status.connected {
+      color: var(--success);
+      border-color: rgba(142,182,154,.45);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 310px 1fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: rgba(20,25,29,.94);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 7px;
+      color: var(--accent-2);
+      font: 13px/1.3 system-ui, sans-serif;
+      font-weight: 600;
+    }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #0b0e10;
+      color: var(--text);
+      outline: none;
+    }
+
+    input {
+      padding: 10px 11px;
+    }
+
+    textarea {
+      min-height: 104px;
+      resize: vertical;
+      padding: 12px;
+      line-height: 1.45;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(184,169,120,.12);
+    }
+
+    .button-row {
+      display: flex;
+      gap: 9px;
+      margin-top: 11px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #1c2328;
+      color: var(--text);
+      padding: 9px 13px;
+      cursor: pointer;
+      transition: .15s ease;
+    }
+
+    button.primary {
+      border-color: #746b4d;
+      background: #2b2a20;
+      color: #efe7cd;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: .42;
+      cursor: not-allowed;
+    }
+
+    .help {
+      margin-top: 12px;
+      color: var(--muted);
+      font: 12px/1.5 system-ui, sans-serif;
+    }
+
+    .error {
+      color: var(--danger);
+    }
+
+    .success {
+      color: var(--success);
+    }
+
+    .story {
+      min-height: 470px;
+      max-height: 62vh;
+      overflow-y: auto;
+      padding: 22px;
+      background:
+        linear-gradient(rgba(255,255,255,.012), rgba(255,255,255,.006)),
+        #0e1215;
+    }
+
+    .entry {
+      padding: 0 0 18px;
+      margin: 0 0 18px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .entry:last-child {
+      border-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .entry .who {
+      margin-bottom: 6px;
+      color: var(--accent);
+      font: 11px/1.3 system-ui, sans-serif;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .entry.player .text {
+      color: #cdd4d7;
+      font-style: italic;
+    }
+
+    .entry.system .text {
+      color: var(--muted);
+      font: 13px/1.45 system-ui, sans-serif;
+    }
+
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 16px;
+      background: var(--panel);
+    }
+
+    .character-card {
+      display: grid;
+      gap: 9px;
+      color: var(--muted);
+      font: 13px/1.45 system-ui, sans-serif;
+    }
+
+    .character-card strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 7px;
+      margin: 2px 3px 2px 0;
+      background: #101518;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #c8c4b8;
+      font-size: 12px;
+    }
+
+    footer {
+      margin-top: 18px;
+      text-align: center;
+      color: #6f777a;
+      font: 11px/1.4 system-ui, sans-serif;
+    }
+
+    @media (max-width: 800px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .story {
+        min-height: 360px;
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <h1>Lovecraft RPG</h1>
+        <div class="subtitle">Single-player investigative horror prototype</div>
+      </div>
+      <div id="connectionStatus" class="status">Not connected</div>
+    </header>
+
+    <div class="grid">
+      <aside>
+        <section class="panel">
+          <div class="panel-body">
+            <h2>Connection</h2>
+
+            <label for="gameToken">GAME_TOKEN</label>
+            <input
+              id="gameToken"
+              type="password"
+              autocomplete="off"
+              placeholder="Enter project password"
+            />
+
+            <div class="button-row">
+              <button id="connectButton" class="primary">Connect</button>
+              <button id="forgetButton">Forget</button>
+            </div>
+
+            <div id="connectionMessage" class="help">
+              The token is stored only in this browser tab using sessionStorage.
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top:20px">
+          <div class="panel-body">
+            <h2>Investigator</h2>
+            <div class="character-card">
+              <div><strong>Name:</strong> Not created</div>
+              <div><strong>Condition:</strong> Uninjured</div>
+              <div><strong>Composure:</strong> Steady</div>
+              <div>
+                <strong>Strengths:</strong><br />
+                <span class="tag">Not assigned</span>
+              </div>
+              <div>
+                <strong>Weaknesses:</strong><br />
+                <span class="tag">Not assigned</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="panel">
+        <div id="story" class="story" aria-live="polite">
+          <div class="entry system">
+            <div class="who">System</div>
+            <div class="text">
+              Enter your GAME_TOKEN and connect to the Lovecraft RPG Worker.
+              This page is the initial browser shell; character creation and
+              the game engine will be added next.
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <label for="playerInput">What do you do?</label>
+          <textarea
+            id="playerInput"
+            placeholder="Example: I examine the study door and listen for movement on the other side."
+            disabled
+          ></textarea>
+
+          <div class="button-row">
+            <button id="sendButton" class="primary" disabled>Send Action</button>
+            <button id="clearButton">Clear Log</button>
+          </div>
+
+          <div id="actionMessage" class="help">
+            Connect to the Worker first.
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer>
+      Prototype interface. OpenAI credentials remain server-side in the Cloudflare Worker.
+    </footer>
+  </div>
+
+  <script>
+    const WORKER_BASE =
+      "https://lovecraft-rpg.diabolicdonut.workers.dev";
+
+    const TEST_ENDPOINT = `${WORKER_BASE}/openai-test`;
+    const GAME_ENDPOINT = `${WORKER_BASE}/api/ai`;
+
+    const tokenInput = document.getElementById("gameToken");
+    const connectButton = document.getElementById("connectButton");
+    const forgetButton = document.getElementById("forgetButton");
+    const connectionStatus = document.getElementById("connectionStatus");
+    const connectionMessage = document.getElementById("connectionMessage");
+
+    const story = document.getElementById("story");
+    const playerInput = document.getElementById("playerInput");
+    const sendButton = document.getElementById("sendButton");
+    const clearButton = document.getElementById("clearButton");
+    const actionMessage = document.getElementById("actionMessage");
+
+    let gameToken = sessionStorage.getItem("lovecraftGameToken") || "";
+
+    if (gameToken) {
+      tokenInput.value = gameToken;
+      connectionMessage.textContent =
+        "A GAME_TOKEN is stored for this browser tab. Click Connect to verify it.";
+    }
+
+    function setConnected(connected) {
+      connectionStatus.textContent = connected ? "Connected" : "Not connected";
+      connectionStatus.classList.toggle("connected", connected);
+      playerInput.disabled = !connected;
+      sendButton.disabled = !connected;
+
+      actionMessage.textContent = connected
+        ? "Worker connected. The action endpoint will be used when /api/ai is enabled."
+        : "Connect to the Worker first.";
+    }
+
+    function addEntry(kind, label, text) {
+      const entry = document.createElement("div");
+      entry.className = `entry ${kind}`;
+
+      const who = document.createElement("div");
+      who.className = "who";
+      who.textContent = label;
+
+      const body = document.createElement("div");
+      body.className = "text";
+      body.textContent = text;
+
+      entry.appendChild(who);
+      entry.appendChild(body);
+      story.appendChild(entry);
+      story.scrollTop = story.scrollHeight;
+    }
+
+    async function connect() {
+      const token = tokenInput.value.trim();
+
+      if (!token) {
+        connectionMessage.textContent = "Enter your GAME_TOKEN first.";
+        connectionMessage.className = "help error";
+        return;
+      }
+
+      connectButton.disabled = true;
+      connectionMessage.textContent = "Checking Worker connection…";
+      connectionMessage.className = "help";
+
+      try {
+        const response = await fetch(TEST_ENDPOINT, {
+          method: "GET",
+          headers: {
+            "X-Game-Token": token
+          }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        gameToken = token;
+        sessionStorage.setItem("lovecraftGameToken", gameToken);
+        setConnected(true);
+
+        connectionMessage.textContent = "Connected successfully.";
+        connectionMessage.className = "help success";
+
+        if (data.narration) {
+          addEntry("system", "Connection Test", data.narration);
+        }
+      } catch (error) {
+        setConnected(false);
+        connectionMessage.textContent =
+          error.message === "Unauthorized"
+            ? "Incorrect GAME_TOKEN."
+            : `Connection failed: ${error.message}`;
+        connectionMessage.className = "help error";
+      } finally {
+        connectButton.disabled = false;
+      }
+    }
+
+    async function sendAction() {
+      const message = playerInput.value.trim();
+
+      if (!message || !gameToken) return;
+
+      sendButton.disabled = true;
+      playerInput.disabled = true;
+      actionMessage.textContent = "Sending action…";
+
+      addEntry("player", "You", message);
+      playerInput.value = "";
+
+      try {
+        const response = await fetch(GAME_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Game-Token": gameToken
+          },
+          body: JSON.stringify({ message })
+        });
+
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error(
+              "The browser is connected, but /api/ai has not been added to the Worker yet."
+            );
+          }
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        const reply =
+          data.response ||
+          data.narration ||
+          data.output ||
+          "The Worker returned no player-facing text.";
+
+        addEntry("narrator", "Narrator", reply);
+        actionMessage.textContent = "Ready.";
+      } catch (error) {
+        addEntry("system", "System", error.message);
+        actionMessage.textContent = error.message;
+      } finally {
+        sendButton.disabled = false;
+        playerInput.disabled = false;
+        playerInput.focus();
+      }
+    }
+
+    connectButton.addEventListener("click", connect);
+
+    forgetButton.addEventListener("click", () => {
+      sessionStorage.removeItem("lovecraftGameToken");
+      gameToken = "";
+      tokenInput.value = "";
+      setConnected(false);
+      connectionMessage.textContent =
+        "Stored GAME_TOKEN cleared from this browser tab.";
+      connectionMessage.className = "help";
+    });
+
+    sendButton.addEventListener("click", sendAction);
+
+    playerInput.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (!sendButton.disabled) sendAction();
+      }
+    });
+
+    clearButton.addEventListener("click", () => {
+      story.innerHTML = "";
+      addEntry(
+        "system",
+        "System",
+        "Log cleared. Your connection state has not changed."
+      );
+    });
+
+    setConnected(false);
+  </script>
+</body>
+</html>
