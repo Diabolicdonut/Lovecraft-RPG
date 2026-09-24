@@ -490,6 +490,11 @@
               <div id="caseHook" class="case-hook"></div>
 
               <div>
+                <strong>Known people</strong>
+                <ul id="knownPeopleList" class="facts-list"></ul>
+              </div>
+
+              <div>
                 <strong>Known facts</strong>
                 <ul id="knownFacts" class="facts-list"></ul>
               </div>
@@ -579,7 +584,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.7.2 · Mystery Engine v0.1
+      Black Meridian · Browser Engine v0.8 · Mystery Engine v0.2
     </footer>
   </div>
 
@@ -598,8 +603,8 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.7.2";
-const DEBUG_REPORT_VERSION = 2;
+const APP_VERSION = "0.8";
+const DEBUG_REPORT_VERSION = 3;
 const MAX_DEBUG_EVENTS = 1000;
 
 // ============================================================================
@@ -608,7 +613,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.7.2",
+    version: "0.8",
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -670,12 +675,65 @@ function newGameState() {
   };
 }
 
+
+function sanitizeLegacyPublicRole(role) {
+  let value = String(role || "Person").trim();
+
+  // v0.7 allowed hidden information to leak into the "role" field.
+  // Strip the most obvious secret-bearing suffixes during migration.
+  value = value
+    .replace(/\s+and\s+concealed\b.*$/i, "")
+    .replace(/\s+and\s+secret\b.*$/i, "")
+    .replace(/\s*[-—:]\s*(?:secret|concealed|hidden)\b.*$/i, "")
+    .trim();
+
+  return value || "Person";
+}
+
+function stripLegacyCastClaims(description, npcs = []) {
+  const source = String(description || "").trim();
+  if (!source) return source;
+
+  const names = (npcs || [])
+    .map(npc => String(npc.name || "").trim())
+    .filter(Boolean);
+
+  const sentences = source.match(/[^.!?]+[.!?]?/g) || [source];
+
+  const filtered = sentences.filter(sentence => {
+    const s = sentence.trim();
+
+    if (names.some(name => s.toLowerCase().includes(name.toLowerCase()))) {
+      return false;
+    }
+
+    // The engine owns person placement. Old generated prose that claims a
+    // group is physically present can contradict authoritative NPC locations.
+    return !/\b(?:survivors?|guests?|occupants?|people)\b/i.test(s);
+  });
+
+  return (filtered.join(" ").trim() || source);
+}
+
+function mysteryUsesLegacyNpcModel(mystery) {
+  return Boolean(
+    mystery?.npcs?.some(npc =>
+      !("publicRole" in npc) ||
+      !("knownAtStart" in npc)
+    )
+  );
+}
+
 function migrateGameState(state) {
   if (!state || typeof state !== "object") {
     return newGameState();
   }
 
-  state.version = "0.7";
+  const priorVersion = String(state.version || "");
+  const legacyNpcModel =
+    state.mystery && mysteryUsesLegacyNpcModel(state.mystery);
+
+  state.version = "0.8";
 
   if (!("currentLocationId" in state)) {
     state.currentLocationId = state.mystery?.startLocationId || null;
@@ -701,12 +759,50 @@ function migrateGameState(state) {
     state.mysterySource = null;
   }
 
+  if (state.mystery) {
+    for (const npc of state.mystery.npcs || []) {
+      if (!npc.publicRole) {
+        npc.publicRole = sanitizeLegacyPublicRole(npc.role);
+      }
+
+      // Old cases never had an explicit player-knowledge field. Treat the
+      // finite cast as known so the player is not confronted with unexplained
+      // names midway through the case.
+      if (!("knownAtStart" in npc)) {
+        npc.knownAtStart = true;
+      }
+    }
+
+    if (legacyNpcModel || /^0\.7/.test(priorVersion)) {
+      for (const location of state.mystery.locations || []) {
+        location.publicDescription =
+          stripLegacyCastClaims(
+            location.publicDescription,
+            state.mystery.npcs
+          );
+      }
+    }
+  }
+
   if (state.mystery && !state.mysteryRuntime) {
     state.mysteryRuntime = {
       firedTimelineIds: [],
       validationProblems: [],
+      introducedNpcIds: [],
       generatedAt: null
     };
+  }
+
+  if (state.mysteryRuntime) {
+    state.mysteryRuntime.firedTimelineIds ||= [];
+    state.mysteryRuntime.validationProblems ||= [];
+
+    if (!Array.isArray(state.mysteryRuntime.introducedNpcIds)) {
+      state.mysteryRuntime.introducedNpcIds =
+        (state.mystery?.npcs || [])
+          .filter(npc => npc.knownAtStart)
+          .map(npc => npc.id);
+    }
   }
 
   return state;
@@ -750,6 +846,7 @@ const caseLocale = $("caseLocale");
 const caseElapsed = $("caseElapsed");
 const evidenceCount = $("evidenceCount");
 const caseHook = $("caseHook");
+const knownPeopleList = $("knownPeopleList");
 const knownFacts = $("knownFacts");
 const evidenceList = $("evidenceList");
 
@@ -1096,25 +1193,32 @@ function buildDebugReport() {
         storedGameSaveByteLength:
           rawStoredSave ? new Blob([rawStoredSave]).size : 0,
 
-        localStorageKeys: Object.keys(localStorage).map(key => ({
-          key,
-          value:
-            key === TOKEN_KEY
-              ? "[REDACTED]"
-              : key === SAVE_KEY
-                ? "[INCLUDED AS storedGameSave]"
-                : key === DEBUG_KEY
-                  ? "[INCLUDED AS diagnosticEvents]"
-                  : localStorage.getItem(key)
-        })),
+        localStorageKeys: Object.keys(localStorage)
+          .filter(key =>
+            [SAVE_KEY, TOKEN_KEY, DEBUG_KEY].includes(key)
+          )
+          .map(key => ({
+            key,
+            value:
+              key === TOKEN_KEY
+                ? "[REDACTED]"
+                : key === SAVE_KEY
+                  ? "[INCLUDED AS storedGameSave]"
+                  : "[INCLUDED AS diagnosticEvents]"
+          })),
 
-        sessionStorageKeys: Object.keys(sessionStorage).map(key => ({
-          key,
-          value:
-            key.toLowerCase().includes("token")
-              ? "[REDACTED]"
-              : sessionStorage.getItem(key)
-        }))
+        unrelatedOriginStorageKeyCount:
+          Object.keys(localStorage)
+            .filter(key =>
+              ![SAVE_KEY, TOKEN_KEY, DEBUG_KEY].includes(key)
+            ).length,
+
+        sessionStorageKeys: Object.keys(sessionStorage)
+          .filter(key => key === TOKEN_KEY)
+          .map(key => ({
+            key,
+            value: "[REDACTED]"
+          }))
       })
     ),
 
@@ -1613,7 +1717,7 @@ function renderHistory() {
     addEntry(
       "system",
       game.mystery.title,
-      game.mystery.openingHook
+      publicOpeningHook()
     );
 
     addEntry(
@@ -1717,6 +1821,40 @@ const PREMISE_MATCH_SCHEMA = {
   additionalProperties: false
 };
 
+
+const CASE_COHERENCE_SCHEMA = {
+  type: "object",
+  properties: {
+    coherent: { type: "boolean" },
+    issues: {
+      type: "array",
+      minItems: 0,
+      maxItems: 12,
+      items: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            enum: [
+              "cast_position_conflict",
+              "public_hidden_leak",
+              "dangling_reference",
+              "knowledge_boundary",
+              "opening_setup_conflict",
+              "other"
+            ]
+          },
+          detail: { type: "string" }
+        },
+        required: ["category", "detail"],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ["coherent", "issues"],
+  additionalProperties: false
+};
+
 const MYSTERY_SCHEMA = {
   type: "object",
   properties: {
@@ -1800,7 +1938,8 @@ const MYSTERY_SCHEMA = {
         properties: {
           id: { type: "string" },
           name: { type: "string" },
-          role: { type: "string" },
+          publicRole: { type: "string" },
+          knownAtStart: { type: "boolean" },
           locationId: { type: "string" },
           publicDescription: { type: "string" },
           secret: { type: "string" },
@@ -1936,11 +2075,91 @@ function currentMysteryLocation() {
   return mysteryLocationById(game.currentLocationId);
 }
 
+function npcPublicRole(npc) {
+  return npc?.publicRole ||
+    sanitizeLegacyPublicRole(npc?.role) ||
+    "Person";
+}
+
+function introducedNpcIdSet() {
+  return new Set(
+    game.mysteryRuntime?.introducedNpcIds || []
+  );
+}
+
+function introduceNpc(npcId, source = "unknown") {
+  if (!game.mystery) return false;
+
+  const npc = game.mystery.npcs.find(n => n.id === npcId);
+  if (!npc) return false;
+
+  game.mysteryRuntime ||= {
+    firedTimelineIds: [],
+    validationProblems: [],
+    introducedNpcIds: [],
+    generatedAt: null
+  };
+
+  game.mysteryRuntime.introducedNpcIds ||= [];
+
+  if (game.mysteryRuntime.introducedNpcIds.includes(npcId)) {
+    return false;
+  }
+
+  game.mysteryRuntime.introducedNpcIds.push(npcId);
+
+  recordDebug("npc_introduced", {
+    npcId,
+    name: npc.name,
+    publicRole: npcPublicRole(npc),
+    source
+  });
+
+  return true;
+}
+
+function introduceNpcsReferencedInText(textValue, source = "text") {
+  if (!game.mystery || !textValue) return [];
+
+  const newlyIntroduced = [];
+
+  for (const npc of game.mystery.npcs || []) {
+    if (
+      String(textValue)
+        .toLowerCase()
+        .includes(String(npc.name).toLowerCase())
+    ) {
+      if (introduceNpc(npc.id, source)) {
+        newlyIntroduced.push(npc);
+      }
+    }
+  }
+
+  return newlyIntroduced;
+}
+
+function knownNpcs() {
+  if (!game.mystery) return [];
+  const introduced = introducedNpcIdSet();
+
+  return game.mystery.npcs.filter(
+    npc => introduced.has(npc.id)
+  );
+}
+
 function visibleNpcsHere() {
   if (!game.mystery) return [];
-  return game.mystery.npcs.filter(
+
+  const present = game.mystery.npcs.filter(
     npc => npc.locationId === game.currentLocationId
   );
+
+  // Seeing someone is itself an introduction.
+  for (const npc of present) {
+    introduceNpc(npc.id, "physically_present");
+  }
+
+  return present;
 }
 
 function visibleObjectsHere() {
@@ -1956,6 +2175,46 @@ function exitLocationsHere() {
     .filter(Boolean);
 }
 
+function knownNpcsElsewhere() {
+  const presentIds = new Set(
+    visibleNpcsHere().map(npc => npc.id)
+  );
+
+  return knownNpcs().filter(
+    npc => !presentIds.has(npc.id)
+  );
+}
+
+function publicOpeningHook() {
+  const hook = String(game.mystery?.openingHook || "").trim();
+  if (!hook || !game.mystery) return hook;
+
+  const knownAtStart = (game.mystery.npcs || [])
+    .filter(npc => npc.knownAtStart);
+
+  const allAtStart =
+    knownAtStart.length === 0 ||
+    knownAtStart.every(
+      npc => npc.locationId === game.mystery.startLocationId
+    );
+
+  if (allAtStart) return hook;
+
+  // When authoritative location assignments disagree with prose claiming
+  // everybody is physically together, remove only those positioning claims.
+  const sentences = hook.match(/[^.!?]+[.!?]?/g) || [hook];
+
+  const safe = sentences.filter(sentence => {
+    const s = sentence.trim();
+    return !(
+      /\b(?:gathered|assembled|all together)\b/i.test(s) &&
+      /\b(?:survivors?|guests?|occupants?|people)\b/i.test(s)
+    );
+  });
+
+  return safe.join(" ").trim() || hook;
+}
+
 function buildPublicScene() {
   const location = currentMysteryLocation();
 
@@ -1964,6 +2223,7 @@ function buildPublicScene() {
   }
 
   const npcs = visibleNpcsHere();
+  const elsewhere = knownNpcsElsewhere();
   const objects = visibleObjectsHere();
   const exits = exitLocationsHere();
 
@@ -1973,7 +2233,23 @@ function buildPublicScene() {
 
   if (npcs.length) {
     lines.push(
-      `People present: ${npcs.map(n => `${n.name} (${n.role})`).join(", ")}.`
+      `People present: ${
+        npcs
+          .map(n => `${n.name} (${npcPublicRole(n)})`)
+          .join(", ")
+      }.`
+    );
+  } else {
+    lines.push("People present: none.");
+  }
+
+  if (elsewhere.length) {
+    lines.push(
+      `Other known people not present here: ${
+        elsewhere
+          .map(n => `${n.name} (${npcPublicRole(n)})`)
+          .join(", ")
+      }.`
     );
   }
 
@@ -2004,26 +2280,38 @@ function publicActionContext() {
           description: location.publicDescription
         }
       : null,
+
     visibleObjects: visibleObjectsHere().map(object => ({
       id: object.id,
       name: object.name,
       description: object.publicDescription
     })),
+
     visibleNpcs: visibleNpcsHere().map(npc => ({
       id: npc.id,
       name: npc.name,
-      role: npc.role,
+      publicRole: npcPublicRole(npc),
       description: npc.publicDescription
     })),
+
+    knownNpcs: knownNpcs().map(npc => ({
+      id: npc.id,
+      name: npc.name,
+      publicRole: npcPublicRole(npc),
+      presentHere: npc.locationId === game.currentLocationId
+    })),
+
     exits: exitLocationsHere().map(location => ({
       id: location.id,
       name: location.name
     })),
+
     discoveredEvidence: discoveredClues().map(clue => ({
       id: clue.id,
       name: clue.name,
       discovery: clue.publicDiscovery
     })),
+
     knownFacts: knownFactSummaries()
   };
 }
@@ -2076,6 +2364,42 @@ function validateMystery(mystery) {
   for (const npc of mystery.npcs || []) {
     if (!locationIds.has(npc.locationId)) {
       problems.push(`NPC ${npc.id} has missing location ${npc.locationId}.`);
+    }
+
+    if (!npc.publicRole || typeof npc.knownAtStart !== "boolean") {
+      problems.push(
+        `NPC ${npc.id} is missing publicRole or knownAtStart.`
+      );
+    }
+
+    if (
+      /\b(?:concealed|secret|werewolf|cultist|culprit|killer|possessed)\b/i
+        .test(npc.publicRole || "")
+    ) {
+      problems.push(
+        `NPC ${npc.id} publicRole appears to contain hidden information.`
+      );
+    }
+  }
+
+  for (const location of mystery.locations || []) {
+    const description = String(location.publicDescription || "");
+
+    for (const npc of mystery.npcs || []) {
+      if (
+        npc.name &&
+        description.toLowerCase().includes(npc.name.toLowerCase())
+      ) {
+        problems.push(
+          `Location ${location.id} publicDescription names ${npc.name}; person placement belongs to the engine.`
+        );
+      }
+    }
+
+    if (/\b(?:survivors?|guests?|occupants?|people present)\b/i.test(description)) {
+      problems.push(
+        `Location ${location.id} publicDescription makes a cast-presence claim; scene composition belongs to the engine.`
+      );
     }
   }
 
@@ -2154,7 +2478,6 @@ function initializeMysteryState(mystery) {
 
   const start = mysteryLocationById(mystery.startLocationId);
   game.location = start?.name || mystery.region;
-  game.publicScene = buildPublicScene();
 
   game.npcs = Object.fromEntries(
     mystery.npcs.map(npc => [npc.id, deepClone(npc)])
@@ -2172,8 +2495,14 @@ function initializeMysteryState(mystery) {
   game.mysteryRuntime = {
     firedTimelineIds: [],
     validationProblems,
+    introducedNpcIds:
+      mystery.npcs
+        .filter(npc => npc.knownAtStart)
+        .map(npc => npc.id),
     generatedAt: new Date().toISOString()
   };
+
+  game.publicScene = buildPublicScene();
 
   // A new generated case starts a fresh scene log but preserves the investigator.
   game.history = [];
@@ -2181,6 +2510,8 @@ function initializeMysteryState(mystery) {
   recordDebug("mystery_generated", {
     premise: casePremise.value.trim(),
     validationProblems,
+    introducedNpcIds:
+      deepClone(game.mysteryRuntime.introducedNpcIds),
     mystery: deepClone(mystery)
   });
 
@@ -2274,6 +2605,32 @@ async function validatePremiseMatch(
   );
 }
 
+
+async function validateCaseCoherence(mystery) {
+  return await callStructured(
+    [
+      "You are the continuity and information-boundary QA checker for Black Meridian.",
+      "Judge internal coherence, not literary quality.",
+      "The browser engine treats NPC locationId as authoritative physical placement.",
+      "Location publicDescription must describe environment only; it must not independently claim who or how many people are present.",
+      "openingHook must not say everyone is gathered in one place unless the NPC locationIds support that.",
+      "publicRole must contain only a public identity/occupation and must never reveal a culprit, monster, supernatural condition, secret allegiance, or hidden motive.",
+      "If openingHook names an NPC, that NPC must have knownAtStart=true.",
+      "NPC names used in clues or timeline events must refer to actual NPCs.",
+      "A clue may introduce a previously unknown NPC, but it must not assume the player already knows who that person is without enough public context.",
+      "Return coherent=false for any material contradiction between public prose and structured world state."
+    ].join("\\n"),
+    JSON.stringify({ mystery }),
+    "black_meridian_case_coherence",
+    CASE_COHERENCE_SCHEMA,
+    {
+      effort: "low",
+      maxTokens: 1400,
+      attempts: 2
+    }
+  );
+}
+
 async function generateCase(premise = "", surprise = false) {
   if (!gameToken) {
     caseGeneratorMessage.textContent =
@@ -2321,7 +2678,7 @@ async function generateCase(premise = "", surprise = false) {
     let problems = [];
     let previousFailure = null;
 
-    const maxAttempts = originalPremise ? 2 : 1;
+    const maxAttempts = originalPremise ? 3 : 2;
 
     for (
       let attempt = 1;
@@ -2356,6 +2713,10 @@ async function generateCase(premise = "", surprise = false) {
           "Scene-targeted clues use targetType 'scene' and targetId equal to their locationId.",
           "NPC-targeted clues may represent testimony, behavior, contradiction, or information obtained through conversation.",
           "Objects named in clues must be present in that location's objects array.",
+          "NPC publicRole must contain ONLY a public occupation or social role. Never place hidden information such as 'werewolf', 'cultist', 'killer', 'possessed', 'concealed', or secret allegiance in publicRole.",
+          "Use knownAtStart=true only for NPC identities the investigator already knows when play begins. Other NPCs may be introduced later.",
+          "Location publicDescription must describe environment, objects, weather, architecture, sounds, and visible conditions only. Do NOT name NPCs, count survivors/guests/people, or state who is present; the browser engine adds the authoritative people list.",
+          "openingHook may establish the overall crisis and known cast, but it must not say everybody is gathered in one room unless their locationId values actually place them there.",
           "The player begins with only the openingHook and public starting scene. Hidden fields are not automatically known.",
           "Allow multiple resolutions: stopping, containing, escaping, rescuing, understanding, or failing.",
           "Make the atmosphere serious and grounded rather than constantly announcing supernatural horror.",
@@ -2389,7 +2750,7 @@ async function generateCase(premise = "", surprise = false) {
 
       problems = validateMystery(candidate);
 
-      if (problems.length > 8) {
+      if (problems.length > 0) {
         recordDebug("mystery_generation_rejected", {
           attempt,
           originalPremise,
@@ -2420,8 +2781,32 @@ async function generateCase(premise = "", surprise = false) {
       });
 
       if (premiseQA.matchesPremise) {
-        mystery = candidate;
-        break;
+        const coherenceQA =
+          await validateCaseCoherence(candidate);
+
+        recordDebug("case_coherence_validation", {
+          attempt,
+          result: coherenceQA
+        });
+
+        if (coherenceQA.coherent) {
+          mystery = candidate;
+          break;
+        }
+
+        previousFailure = {
+          reason: "case_coherence",
+          issues: coherenceQA.issues
+        };
+
+        recordDebug("mystery_coherence_rejected", {
+          attempt,
+          originalPremise,
+          coherenceQA,
+          mystery: candidate
+        });
+
+        continue;
       }
 
       previousFailure = {
@@ -2538,10 +2923,28 @@ function registerClueDiscovery(clue, outcome) {
 
   game.knowledge.facts[clue.factId] = existing;
 
+  const discoveryText =
+    [
+      clue.publicDiscovery,
+      outcomeRank(outcome) >= 4
+        ? clue.strongDiscovery
+        : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+  const introducedByClue =
+    introduceNpcsReferencedInText(
+      discoveryText,
+      `clue:${clue.id}`
+    );
+
   recordDebug("clue_discovered", {
     clue: deepClone(clue),
     factState: deepClone(existing),
-    outcome
+    outcome,
+    introducedNpcIds:
+      introducedByClue.map(npc => npc.id)
   });
 
   return clue;
@@ -2627,6 +3030,11 @@ function processTimelineEvents(previousMinute, currentMinute) {
       fired.add(event.id);
       triggered.push(event);
 
+      introduceNpcsReferencedInText(
+        event.publicEvent,
+        `timeline:${event.id}`
+      );
+
       recordDebug("timeline_event_triggered", {
         event: deepClone(event),
         previousMinute,
@@ -2656,7 +3064,29 @@ function renderCaseSummary() {
   evidenceCount.textContent =
     String(discoveredClues().length);
   caseHook.textContent =
-    game.mystery.openingHook;
+    publicOpeningHook();
+
+  knownPeopleList.innerHTML = "";
+  const people = knownNpcs();
+
+  if (!people.length) {
+    const li = document.createElement("li");
+    li.textContent = "No one else has been identified yet.";
+    knownPeopleList.appendChild(li);
+  } else {
+    for (const npc of people) {
+      const li = document.createElement("li");
+      const present =
+        npc.locationId === game.currentLocationId;
+
+      li.textContent =
+        `${npc.name} — ${npcPublicRole(npc)} — ${
+          present ? "Present here" : "Not present here"
+        }`;
+
+      knownPeopleList.appendChild(li);
+    }
+  }
 
   knownFacts.innerHTML = "";
   const facts = knownFactSummaries();
@@ -2820,7 +3250,7 @@ async function assessAction() {
         "Choose the one capability most directly governing the attempt.",
         "Difficulty is the apparent challenge.",
         "Risk is the seriousness of plausible failure, not its probability.",
-        "Choose targetId ONLY from the visible scene IDs supplied in the JSON.",
+        "Choose targetId ONLY from visibleObjects, visibleNpcs, the current scene, or listed exits. knownNpcs are background reference context and cannot be targeted unless also present in visibleNpcs.",
         "Use targetType 'location' for movement to a listed exit, 'object' for a visible object, 'npc' for a visible person, 'scene' for a general search of the current location, and 'none' when there is no concrete target.",
         "For targetType 'scene', use the current location ID as targetId.",
         "If the player refers to something that is not visible in the supplied scene, use targetType 'none', targetId null, high uncertainty, and do not invent it.",
@@ -2972,6 +3402,7 @@ async function commitAction() {
     caseElapsedMinutes: game.caseElapsedMinutes,
     location: game.location,
     currentLocationId: game.currentLocationId,
+    publicScene: game.publicScene,
     character: deepClone(game.character),
     knowledge: deepClone(game.knowledge)
   };
@@ -2997,10 +3428,22 @@ async function commitAction() {
 
   const timeState = applyGenericEffects(interp, outcome, minutes);
 
+  const knownNpcIdsBeforeDiscovery =
+    introducedNpcIdSet();
+
   // Evidence discovery happens against the scene in which the action began.
   const discoveries = deterministicMove
     ? []
     : discoverFromAction(interp, outcome);
+
+  const newPeopleIntroduced = knownNpcs()
+    .filter(npc => !knownNpcIdsBeforeDiscovery.has(npc.id))
+    .map(npc => ({
+      id: npc.id,
+      name: npc.name,
+      publicRole: npcPublicRole(npc),
+      description: npc.publicDescription
+    }));
 
   if (destination) {
     game.currentLocationId = destination.id;
@@ -3050,9 +3493,7 @@ async function commitAction() {
       caseTitle: game.mystery?.title || null,
       sceneBefore: preResolutionState.location,
       publicSceneBefore:
-        game.mystery
-          ? mysteryLocationById(preResolutionState.currentLocationId)?.publicDescription || ""
-          : game.publicScene,
+        preResolutionState.publicScene || game.publicScene,
       playerAction: action,
       outcome,
       actionType: interp.actionType,
@@ -3062,6 +3503,7 @@ async function commitAction() {
       condition: conditionText(),
       composure: composureText(),
       discoveries: discoveryPayload,
+      newPeopleIntroduced,
       movedTo: destination
         ? {
             id: destination.id,
@@ -3082,6 +3524,7 @@ async function commitAction() {
             "Narrate ONLY the authorized result supplied below.",
             "Do not alter the outcome.",
             "Every supplied discovery must appear clearly in the narration in substance.",
+            "If newPeopleIntroduced is non-empty, introduce those people by the supplied public name and publicRole on first mention. Do not assume the player already knows who they are.",
             "Do not narrate timelineEvents inside the action narration; the interface displays those events separately.",
             "If movedTo is supplied, establish that destination using only its supplied public scene.",
             "Do not invent additional clues, NPC secrets, injuries, locations, items, supernatural facts, motives, or mystery solutions.",
@@ -3358,6 +3801,13 @@ playerInput.addEventListener("keydown", event => {
 // ============================================================================
 // STARTUP
 // ============================================================================
+
+if (game.mystery) {
+  // Rebuild the public scene after migrations so old cached prose cannot
+  // override authoritative NPC positions.
+  game.publicScene = buildPublicScene();
+  saveGame();
+}
 
 recordDebug("app_start", {
   appVersion: APP_VERSION,
