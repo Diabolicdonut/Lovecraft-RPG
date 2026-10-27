@@ -156,7 +156,8 @@
       if (roadmap.data.document && /^[a-zA-Z0-9_./-]+$/.test(roadmap.data.document) &&
           !roadmap.data.document.includes('..')) {
         const link = make('a', '', 'Read roadmap and acceptance evidence');
-        link.href = new URL(roadmap.data.document, root).href;
+        link.href = 'https://github.com/Diabolicdonut/Lovecraft-RPG/blob/main/' +
+          roadmap.data.document;
         link.target = '_blank'; link.rel = 'noopener noreferrer';
         body.append(link);
       }
