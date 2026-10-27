@@ -13,84 +13,199 @@
     "label": "Call of Cthulhu rules transition",
     "completed": 0,
     "total": 5,
-    "basis": "Planned gates: rules authority mapping, character sheet and skills, hidden percentage-roll adjudication, sanity/injuries, and validated end-to-end cases.",
-    "note": "0% refers only to the newly requested CoC conversion; Black Meridian already has a working earlier browser engine."
+    "basis": "The five auditable outcomes are rules mapping; full investigator sheets; secret CoC d100 and risk previews; physical/mental consequences; end-to-end validated CoC cases.",
+    "note": "0/5 is the active conversion phase, distinct from whole-vision 18%. Old generic mechanics remain live until a tested replacement is ready."
   },
   "roadmap": {
-    "label": "Full approved Lovecraft RPG — Black Meridian delivery roadmap",
-    "scope": "Bounded transition to a complete behind-the-screen Call of Cthulhu-based investigative horror engine while preserving the existing Black Meridian mystery creation experience and natural-language play.",
-    "document": "ROADMAP-COVERAGE.md",
-    "note": "Weighted, accepted-gates-only planning progress; partial gates earn zero until accepted. Existing milestone/phase percentage is separately preserved.",
+    "label": "Full Black Meridian development roadmap",
+    "version": "R1 (2026-10-27)",
+    "scope": "7e rules engine + digital Keeper + procedurally generated scenarios/campaigns + optional HTML scene positions and ambient audio.",
+    "document": "DEVELOPMENT-ROADMAP.md",
+    "note": "18% is evidence-backed accepted milestone weight across the entire approved product vision. Partial work gets no headline credit; baseline v0.8.1 gameplay is preserved.",
     "gates": [
       {
-        "id": "browser-mystery",
-        "label": "Existing browser mystery gameplay foundation",
-        "weight": 12,
+        "id": "f-browser",
+        "label": "Playable browser mystery and natural-language interface",
+        "weight": 5,
         "status": "accepted",
-        "evidence": "index.html; audit.md"
+        "evidence": "index.html; audit.md v0.8.1",
+        "phase": "0 · Preserved foundation"
       },
       {
-        "id": "structured-contract",
-        "label": "Strict generated mystery schema self-test and preflight",
-        "weight": 8,
+        "id": "f-generation",
+        "label": "Structured premise, scenario and coherence preflight",
+        "weight": 5,
         "status": "accepted",
-        "evidence": "audit.md (v0.8.1)"
+        "evidence": "index.html; audit.md v0.8 / v0.8.1",
+        "phase": "0 · Preserved foundation"
       },
       {
-        "id": "knowledge-privacy-ui",
-        "label": "Player-view NPC knowledge and physical appearance gating",
-        "weight": 8,
+        "id": "f-knowledge",
+        "label": "Mystery truth, clue knowledge and NPC public-identity boundaries",
+        "weight": 4,
         "status": "accepted",
-        "evidence": "audit.md (v0.8 changes)"
+        "evidence": "index.html; audit.md v0.8",
+        "phase": "0 · Preserved foundation"
       },
       {
-        "id": "debug-recovery",
-        "label": "Browser save, debug report and case recovery foundations",
-        "weight": 7,
+        "id": "f-persistence",
+        "label": "Save, import/export and sanitized debug foundations",
+        "weight": 4,
         "status": "accepted",
-        "evidence": "index.html; audit.md"
+        "evidence": "index.html; audit.md v0.8.1",
+        "phase": "0 · Preserved foundation"
       },
       {
-        "id": "rules-authority",
-        "label": "CoC rulebook mapping and explicit compatibility policy",
-        "weight": 10,
-        "status": "planned",
-        "evidence": "ROADMAP-COVERAGE.md"
-      },
-      {
-        "id": "investigator-sheets",
-        "label": "CoC investigator attributes, skills, occupations and customization",
-        "weight": 11,
-        "status": "planned",
-        "evidence": "ROADMAP-COVERAGE.md"
-      },
-      {
-        "id": "hidden-d100",
-        "label": "Referee-resolved percentile skill and opposed rules with hidden math",
-        "weight": 10,
-        "status": "planned",
-        "evidence": "ROADMAP-COVERAGE.md"
-      },
-      {
-        "id": "sanity-and-injuries",
-        "label": "Sanity, stability, damage, healing and long-term consequences",
-        "weight": 10,
-        "status": "planned",
-        "evidence": "ROADMAP-COVERAGE.md"
-      },
-      {
-        "id": "case-verification",
-        "label": "End-to-end generated CoC mysteries with evidence and rules verification",
-        "weight": 12,
-        "status": "planned",
-        "evidence": "ROADMAP-COVERAGE.md"
-      },
-      {
-        "id": "safe-worker-release",
-        "label": "Trusted secrets, hosted AI adjudication, desktop/mobile playtesting",
-        "weight": 12,
+        "id": "g-governance",
+        "label": "Versioned roadmap, rule provenance and distribution policy",
+        "weight": 3,
         "status": "partial",
-        "evidence": "index.html; audit.md"
+        "evidence": "DEVELOPMENT-ROADMAP.md; AGENTS.md; site-progress.json (governance only; licensing review pending)",
+        "phase": "1 · Authority and governance"
+      },
+      {
+        "id": "r-authority",
+        "label": "7th Edition rules coverage and compatibility matrix",
+        "weight": 4,
+        "status": "planned",
+        "evidence": "Pending verified rule-by-rule coverage",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-investigator",
+        "label": "Full optional investigator sheets and creation",
+        "weight": 6,
+        "status": "planned",
+        "evidence": "Pending implemented character creation",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-percentile",
+        "label": "Deterministic secret d100 rules and opposed resolution",
+        "weight": 7,
+        "status": "planned",
+        "evidence": "Pending independent mechanical tests",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-preview",
+        "label": "Intelligible competence and risk previews without dice",
+        "weight": 4,
+        "status": "partial",
+        "evidence": "index.html has former qualitative action assessments; CoC conversion pending",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-combat",
+        "label": "Combat, weapons, pursuit and environmental hazards",
+        "weight": 5,
+        "status": "planned",
+        "evidence": "Pending combat/chase engine and tests",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-sanity",
+        "label": "Sanity, injury, major wounds, dying and recovery",
+        "weight": 5,
+        "status": "planned",
+        "evidence": "Pending conditions and SAN subsystems",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-occult",
+        "label": "Occult threats, tomes, rituals and Mythos magic",
+        "weight": 3,
+        "status": "planned",
+        "evidence": "Pending creature/spell mapping and content rights review",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "r-advancement",
+        "label": "Experience, improvement, downtime and campaign economy",
+        "weight": 3,
+        "status": "planned",
+        "evidence": "Pending validated advancement engine",
+        "phase": "2 · Call of Cthulhu engine"
+      },
+      {
+        "id": "k-keeper",
+        "label": "Structured AI Keeper authority and narration",
+        "weight": 5,
+        "status": "partial",
+        "evidence": "Existing AI narration and browser resolution; CoC authority boundary pending",
+        "phase": "3 · Digital Keeper"
+      },
+      {
+        "id": "k-npcs",
+        "label": "Persistent NPCs, relationships, plans and off-screen events",
+        "weight": 4,
+        "status": "partial",
+        "evidence": "Fixed NPC locations and event timelines exist; autonomous behavior missing",
+        "phase": "3 · Digital Keeper"
+      },
+      {
+        "id": "k-investigation",
+        "label": "Clue network, player theories and fair investigation",
+        "weight": 4,
+        "status": "partial",
+        "evidence": "Current fact/evidence lists exist; clue dependency design incomplete",
+        "phase": "3 · Digital Keeper"
+      },
+      {
+        "id": "s-procedural",
+        "label": "Unlimited coherent procedural scenario compiler",
+        "weight": 6,
+        "status": "partial",
+        "evidence": "Prototype generator and coherence QA present; complete CoC scenario compiler missing",
+        "phase": "4 · Adventures and campaigns"
+      },
+      {
+        "id": "s-published",
+        "label": "User-supplied published scenario adapter and scenario testing",
+        "weight": 3,
+        "status": "planned",
+        "evidence": "Uploaded official scenario PDFs available for private research; no public module implementation",
+        "phase": "4 · Adventures and campaigns"
+      },
+      {
+        "id": "s-campaign",
+        "label": "Long-form campaign continuity, factions and resolutions",
+        "weight": 4,
+        "status": "planned",
+        "evidence": "Pending cross-scenario engine and tests",
+        "phase": "4 · Adventures and campaigns"
+      },
+      {
+        "id": "v-space",
+        "label": "HTML 2D scenes, exploration maps and character positioning",
+        "weight": 6,
+        "status": "planned",
+        "evidence": "Pending map/scene representation and visual state tests",
+        "phase": "5 · Presentation and atmosphere"
+      },
+      {
+        "id": "v-audio",
+        "label": "Optional licensed ambient music and effects",
+        "weight": 2,
+        "status": "planned",
+        "evidence": "Pending audio subsystem and cleared assets",
+        "phase": "5 · Presentation and atmosphere"
+      },
+      {
+        "id": "v-access",
+        "label": "Player settings, readable sheet, accessibility and mobile UX",
+        "weight": 3,
+        "status": "partial",
+        "evidence": "Existing responsive layout and basic UI; planned controls missing",
+        "phase": "5 · Presentation and atmosphere"
+      },
+      {
+        "id": "q-release",
+        "label": "Rules parity, security, regression, migrations and deployment",
+        "weight": 5,
+        "status": "partial",
+        "evidence": "Earlier syntax/static checks, progress widget and token redaction exist; full QA missing",
+        "phase": "6 · QA and release"
       }
     ]
   }

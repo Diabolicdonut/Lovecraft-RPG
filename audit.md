@@ -1,6 +1,17 @@
 # Black Meridian — Audit / Change Log
 
-> **Roadmap scope review (2026-10-27):** The overall accepted project-delivery percentage is **35%** based on the [current evidence-backed 100-point roadmap](ROADMAP-COVERAGE.md). The site's older stage indicator remains separate. Future development must update the roadmap only with accepted functional evidence.
+> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version remains **0.8.1**. Do not mark an incomplete rules gate accepted.
+
+## 2026-10-27 — Whole-product scope and governance update (documentation/status only)
+
+- Reviewed current GitHub main and preserved the previously implemented v0.8.1 browser/AI mystery foundation and public site progress widget.
+- Expanded scope to 23 scored delivery gates / 100 total points. Accepted gates: browser gameplay (5), schema/coherence QA (5), hidden/public clue and NPC knowledge (4), saves/debug (4), total 18 points.
+- Defined Call of Cthulhu 7e as future deterministic engine, optional investigator sheets and qualitative task previews, private hidden dice/checks, full SAN/combat/occult/advancement, AI Keeper state, persistent NPC movement/memory, adventures and campaigns, position-aware HTML scenes and optional ambient music.
+- Uploaded official Keeper/Investigator source PDFs and seven scenario/campaign works recognized as **private references**; no copyrighted official material added to public GitHub.
+- Established `DEVELOPMENT-ROADMAP.md`, `AGENTS.md`, `site-progress.json` gate ledger, integrity validator and CI review to keep the site status synchronized.
+- No gameplay/mechanics engine code was changed or tested as Call of Cthulhu. No Cloudflare Worker changes. Old v0.8.1 custom checks remain until safe migration.
+- Validation: 23 unique IDs; 100/100 weighted; accepted 18/100; 0/5 conversion; existing `index.html` includes `site-progress.js`. Further runtime smoke testing awaits an engineering rules milestone.
+
 
 ## Current Build
 

@@ -1,0 +1,32 @@
+name: Black Meridian roadmap integrity
+on:
+  push:
+    paths:
+      - 'DEVELOPMENT-ROADMAP.md'
+      - 'ROADMAP-COVERAGE.md'
+      - 'site-progress.json'
+      - 'audit.md'
+      - 'index.html'
+      - 'scripts/verify-roadmap.mjs'
+      - '.github/workflows/roadmap-integrity.yml'
+  pull_request:
+    paths:
+      - 'DEVELOPMENT-ROADMAP.md'
+      - 'ROADMAP-COVERAGE.md'
+      - 'site-progress.json'
+      - 'audit.md'
+      - 'index.html'
+      - 'scripts/verify-roadmap.mjs'
+      - '.github/workflows/roadmap-integrity.yml'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify roadmap, audit and site manifest
+        run: node scripts/verify-roadmap.mjs
