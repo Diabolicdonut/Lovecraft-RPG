@@ -1,5 +1,7 @@
 # Black Meridian — Audit / Change Log
 
+> **Roadmap scope review (2026-10-27):** The overall accepted project-delivery percentage is **35%** based on the [current evidence-backed 100-point roadmap](ROADMAP-COVERAGE.md). The site's older stage indicator remains separate. Future development must update the roadmap only with accepted functional evidence.
+
 ## Current Build
 
 **Version:** 0.8.1  

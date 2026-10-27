@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "project": "Lovecraft-RPG",
-  "asOf": "2026-10-26",
+  "asOf": "2026-10-27",
   "revision": "v0.8.1",
   "revisionSource": {
     "type": "text",
@@ -15,5 +15,83 @@
     "total": 5,
     "basis": "Planned gates: rules authority mapping, character sheet and skills, hidden percentage-roll adjudication, sanity/injuries, and validated end-to-end cases.",
     "note": "0% refers only to the newly requested CoC conversion; Black Meridian already has a working earlier browser engine."
+  },
+  "roadmap": {
+    "label": "Full approved Lovecraft RPG — Black Meridian delivery roadmap",
+    "scope": "Bounded transition to a complete behind-the-screen Call of Cthulhu-based investigative horror engine while preserving the existing Black Meridian mystery creation experience and natural-language play.",
+    "document": "ROADMAP-COVERAGE.md",
+    "note": "Weighted, accepted-gates-only planning progress; partial gates earn zero until accepted. Existing milestone/phase percentage is separately preserved.",
+    "gates": [
+      {
+        "id": "browser-mystery",
+        "label": "Existing browser mystery gameplay foundation",
+        "weight": 12,
+        "status": "accepted",
+        "evidence": "index.html; audit.md"
+      },
+      {
+        "id": "structured-contract",
+        "label": "Strict generated mystery schema self-test and preflight",
+        "weight": 8,
+        "status": "accepted",
+        "evidence": "audit.md (v0.8.1)"
+      },
+      {
+        "id": "knowledge-privacy-ui",
+        "label": "Player-view NPC knowledge and physical appearance gating",
+        "weight": 8,
+        "status": "accepted",
+        "evidence": "audit.md (v0.8 changes)"
+      },
+      {
+        "id": "debug-recovery",
+        "label": "Browser save, debug report and case recovery foundations",
+        "weight": 7,
+        "status": "accepted",
+        "evidence": "index.html; audit.md"
+      },
+      {
+        "id": "rules-authority",
+        "label": "CoC rulebook mapping and explicit compatibility policy",
+        "weight": 10,
+        "status": "planned",
+        "evidence": "ROADMAP-COVERAGE.md"
+      },
+      {
+        "id": "investigator-sheets",
+        "label": "CoC investigator attributes, skills, occupations and customization",
+        "weight": 11,
+        "status": "planned",
+        "evidence": "ROADMAP-COVERAGE.md"
+      },
+      {
+        "id": "hidden-d100",
+        "label": "Referee-resolved percentile skill and opposed rules with hidden math",
+        "weight": 10,
+        "status": "planned",
+        "evidence": "ROADMAP-COVERAGE.md"
+      },
+      {
+        "id": "sanity-and-injuries",
+        "label": "Sanity, stability, damage, healing and long-term consequences",
+        "weight": 10,
+        "status": "planned",
+        "evidence": "ROADMAP-COVERAGE.md"
+      },
+      {
+        "id": "case-verification",
+        "label": "End-to-end generated CoC mysteries with evidence and rules verification",
+        "weight": 12,
+        "status": "planned",
+        "evidence": "ROADMAP-COVERAGE.md"
+      },
+      {
+        "id": "safe-worker-release",
+        "label": "Trusted secrets, hosted AI adjudication, desktop/mobile playtesting",
+        "weight": 12,
+        "status": "partial",
+        "evidence": "index.html; audit.md"
+      }
+    ]
   }
 }
