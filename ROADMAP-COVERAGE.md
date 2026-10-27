@@ -21,7 +21,7 @@ A persistent, browser-based Lovecraftian RPG using Call of Cthulhu 7th Edition b
 | 6 · QA and release | 0 | 5 |
 | **Total** | **18** | **100** |
 
-**Next checkpoint:** authoritative 7e rules mapping, mechanical interface and golden percentile tests; then integrate on-demand character sheets and secret rolls without breaking current mystery creation. Each future code update must revise roadmap progress/audit together; planned and partial gates do not count until their full acceptance checks pass.
+**COC-001 delivered:** isolated 7e percentile engine, eleven tests, a chapter coverage/gap matrix, and a passing mechanical GitHub Actions workflow. **Next COC-002:** investigator schema and on-demand sheet, calibrated previews, bounded Keeper pipeline and live save migration before retiring the previous resolution engine. Each future code update must revise roadmap progress/audit together; planned and partial gates do not count until their full acceptance checks pass.
 
 ## Gates
 
@@ -30,9 +30,9 @@ A persistent, browser-based Lovecraftian RPG using Call of Cthulhu 7th Edition b
 - `f-knowledge` — Mystery truth, clue knowledge and NPC public-identity boundaries (4 pts; accepted)
 - `f-persistence` — Save, import/export and sanitized debug foundations (4 pts; accepted)
 - `g-governance` — Versioned roadmap, rule provenance and distribution policy (3 pts; partial)
-- `r-authority` — 7th Edition rules coverage and compatibility matrix (4 pts; planned)
+- `r-authority` — 7th Edition rules coverage and compatibility matrix (4 pts; partial)
 - `r-investigator` — Full optional investigator sheets and creation (6 pts; planned)
-- `r-percentile` — Deterministic secret d100 rules and opposed resolution (7 pts; planned)
+- `r-percentile` — Deterministic secret d100 rules and opposed resolution (7 pts; partial)
 - `r-preview` — Intelligible competence and risk previews without dice (4 pts; partial)
 - `r-combat` — Combat, weapons, pursuit and environmental hazards (5 pts; planned)
 - `r-sanity` — Sanity, injury, major wounds, dying and recovery (5 pts; planned)

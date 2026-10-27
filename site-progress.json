@@ -14,14 +14,14 @@
     "completed": 0,
     "total": 5,
     "basis": "The five auditable outcomes are rules mapping; full investigator sheets; secret CoC d100 and risk previews; physical/mental consequences; end-to-end validated CoC cases.",
-    "note": "0/5 is the active conversion phase, distinct from whole-vision 18%. Old generic mechanics remain live until a tested replacement is ready."
+    "note": "0/5 completed transition outcomes. The COC-001 kernel/tests exist independently, but v0.8.1 game actions still use the previous mechanics."
   },
   "roadmap": {
     "label": "Full Black Meridian development roadmap",
     "version": "R1 (2026-10-27)",
     "scope": "7e rules engine + digital Keeper + procedurally generated scenarios/campaigns + optional HTML scene positions and ambient audio.",
     "document": "DEVELOPMENT-ROADMAP.md",
-    "note": "18% is evidence-backed accepted milestone weight across the entire approved product vision. Partial work gets no headline credit; baseline v0.8.1 gameplay is preserved.",
+    "note": "18% evidence-backed accepted weight across the full vision. COC-001 is tested preparatory work: partial gates remain at zero weighted points until full acceptance.",
     "gates": [
       {
         "id": "f-browser",
@@ -67,8 +67,8 @@
         "id": "r-authority",
         "label": "7th Edition rules coverage and compatibility matrix",
         "weight": 4,
-        "status": "planned",
-        "evidence": "Pending verified rule-by-rule coverage",
+        "status": "partial",
+        "evidence": "docs/COC-7E-RULES-COVERAGE.md (incomplete chapter matrix; 7e live integration pending)",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
@@ -83,8 +83,8 @@
         "id": "r-percentile",
         "label": "Deterministic secret d100 rules and opposed resolution",
         "weight": 7,
-        "status": "planned",
-        "evidence": "Pending independent mechanical tests",
+        "status": "partial",
+        "evidence": "engine/coc7.mjs; tests/coc7.test.mjs; COC-001 GitHub Actions success (isolated)",
         "phase": "2 · Call of Cthulhu engine"
       },
       {

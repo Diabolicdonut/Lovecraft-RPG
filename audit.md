@@ -2,6 +2,16 @@
 
 > **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version remains **0.8.1**. Do not mark an incomplete rules gate accepted.
 
+## 2026-10-27 — COC-001: 7th Edition percentile kernel (isolated engineering checkpoint)
+
+- Added `engine/coc7.mjs`: independent percentile engine implementing thresholds, critical/fumble classification, bonus/penalty tens dice, opposed level ranking and explicit-consent push/optional Luck calculation. Uses secure entropy in production and injectable deterministic test RNG.
+- Added `tests/coc7.test.mjs` with **11 Node tests** for edge cases, contested results, optional Luck and pushes, data validation, public-result projection and seeded statistical sanity.
+- Added `docs/COC-7E-RULES-COVERAGE.md`: documented official uploaded 7e source authorities, chapter-level mechanics matrix, which rules are still missing, and licensing/republication restrictions.
+- Added GitHub Actions workflow for isolated kernel tests; **11/11 tests PASS** on run [40567785355](https://github.com/Diabolicdonut/Lovecraft-RPG/actions/runs/40567785355). The roadmap validator ran in that workflow.
+- Updated `r-authority` and `r-percentile` from planned to **partial**; full acceptance remains blocked on complete rules mapping, consent integrations, combined/group checks, and live AI/game migration. Score stays 18/100 and 0/5 CoC transition.
+- **No gameplay version bump:** v0.8.1 is still serving old custom resolution. No modifications to `index.html`, saves, Cloudflare Worker or published scenarios. No functional browser/Worker smoke test claimed for CoC in this checkpoint.
+- **Next COC-002:** 7e investigator schema and on-demand sheet, qualitative risk previews and bounded AI → deterministic engine → narrated outcome integration; regression and migrations required.
+
 ## 2026-10-27 — Whole-product scope and governance update (documentation/status only)
 
 - Reviewed current GitHub main and preserved the previously implemented v0.8.1 browser/AI mystery foundation and public site progress widget.

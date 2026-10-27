@@ -44,9 +44,9 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 | `f-knowledge` | Mystery truth, clue knowledge and NPC public-identity boundaries | 4 | accepted |
 | `f-persistence` | Save, import/export and sanitized debug foundations | 4 | accepted |
 | `g-governance` | Versioned roadmap, rule provenance and distribution policy | 3 | partial |
-| `r-authority` | 7th Edition rules coverage and compatibility matrix | 4 | planned |
+| `r-authority` | 7th Edition rules coverage and compatibility matrix | 4 | partial |
 | `r-investigator` | Full optional investigator sheets and creation | 6 | planned |
-| `r-percentile` | Deterministic secret d100 rules and opposed resolution | 7 | planned |
+| `r-percentile` | Deterministic secret d100 rules and opposed resolution | 7 | partial |
 | `r-preview` | Intelligible competence and risk previews without dice | 4 | partial |
 | `r-combat` | Combat, weapons, pursuit and environmental hazards | 5 | planned |
 | `r-sanity` | Sanity, injury, major wounds, dying and recovery | 5 | planned |
@@ -67,6 +67,11 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 ### Current phase
 
 **Phase: Call of Cthulhu conversion, 0 of 5 audited transition outcomes.** These outcomes are (1) rules mapping; (2) visible investigators/skills; (3) hidden percentile adjudication with informed stakes; (4) SAN/injury/combat; (5) validated end-to-end CoC case. The whole-product completion is a separate, broader figure.
+
+
+### COC-001 test checkpoint · 2026-10-27
+
+Isolated rule kernel and tests are in GitHub; [rules coverage and missing sections](docs/COC-7E-RULES-COVERAGE.md). The live browser engine remains unchanged. The 11-test mechanical suite and roadmap integrity checks passed in CI. **No full-gate points awarded** because live conversion, several rule categories and licensing review remain incomplete.
 
 ## 5. Detailed milestones and acceptance conditions
 
@@ -116,13 +121,13 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 
 ## 2 · Call of Cthulhu engine
 
-### r-authority — 7th Edition rules coverage and compatibility matrix (4 points; planned)
+### r-authority — 7th Edition rules coverage and compatibility matrix (4 points; partial)
 
 **Scope:** Keeper Rulebook primary, Investigator Handbook complementary; conflicts, optional rules, errata and boundary cases documented.
 
 **Acceptance:** Coverage tests or explicit exceptions for core chapters; no generic probability engine silently handles CoC actions.
 
-**Evidence today:** Pending verified rule-by-rule coverage
+**Evidence today:** docs/COC-7E-RULES-COVERAGE.md (COC-001 chapter mapping; many systems not yet implemented, full acceptance blocked)
 
 ### r-investigator — Full optional investigator sheets and creation (6 points; planned)
 
@@ -132,13 +137,13 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 
 **Evidence today:** Pending implemented character creation
 
-### r-percentile — Deterministic secret d100 rules and opposed resolution (7 points; planned)
+### r-percentile — Deterministic secret d100 rules and opposed resolution (7 points; partial)
 
 **Scope:** Regular/Hard/Extreme, critical/fumble, bonus/penalty dice, opposed tests, combined/group checks, push eligibility and luck rules.
 
 **Acceptance:** Table-driven and statistical parity tests pass; AI cannot override result or generate rolls; rolls never appear in normal narrative.
 
-**Evidence today:** Pending independent mechanical tests
+**Evidence today:** engine/coc7.mjs; tests/coc7.test.mjs; GitHub Actions COC-001 kernel tests PASS (isolated only; not wired into game)
 
 ### r-preview — Intelligible competence and risk previews without dice (4 points; partial)
 
@@ -270,7 +275,9 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 
 ## 6. Implementation sequence and dependency plan
 
-**Next checkpoint (R1 → first engineering milestone):** produce `docs/COC-7E-RULES-COVERAGE.md` covering the supplied 7e sources, engine method contracts, optional rules and evidence; write a failing-then-passing golden test harness for secret d100 checks **before** replacing existing adjudication. Preserve stable v0.8.1 until the replacement is ready and a save-migration test passes.
+**COC-001 implemented (isolated):** produced `docs/COC-7E-RULES-COVERAGE.md`, `engine/coc7.mjs` and `tests/coc7.test.mjs`; successful GitHub Actions test on 2026-10-27. This is preparatory work, not a live conversion or accepted full gate.
+
+**Next checkpoint COC-002:** create full 7e investigator data model and on-demand sheet; calibrate risk estimates against percentile checks; route bounded AI action requests to the kernel with save migration and scenario smoke tests **before** switching existing adjudication. Preserve stable v0.8.1 until verified.
 
 **Milestone A — mechanical spine:** g-governance → r-authority → r-percentile → r-investigator → r-preview. Implement sheet view and natural-language action pipeline together so the player immediately has meaningful agency without visible rolls.
 
