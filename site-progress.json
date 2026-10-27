@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "project": "Lovecraft-RPG",
+  "asOf": "2026-10-26",
+  "revision": "v0.8.1",
+  "revisionSource": {
+    "type": "text",
+    "file": "audit.md",
+    "pattern": "\\*\\*Version:\\*\\*\\s*([0-9.]+)",
+    "prefix": "v"
+  },
+  "progress": {
+    "label": "Call of Cthulhu rules transition",
+    "completed": 0,
+    "total": 5,
+    "basis": "Planned gates: rules authority mapping, character sheet and skills, hidden percentage-roll adjudication, sanity/injuries, and validated end-to-end cases.",
+    "note": "0% refers only to the newly requested CoC conversion; Black Meridian already has a working earlier browser engine."
+  }
+}
