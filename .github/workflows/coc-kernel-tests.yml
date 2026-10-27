@@ -1,0 +1,28 @@
+name: Black Meridian CoC kernel tests
+on:
+  push:
+    paths:
+      - 'engine/**'
+      - 'tests/**'
+      - 'docs/COC-7E-RULES-COVERAGE.md'
+      - '.github/workflows/coc-kernel-tests.yml'
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'tests/**'
+      - 'docs/COC-7E-RULES-COVERAGE.md'
+      - '.github/workflows/coc-kernel-tests.yml'
+jobs:
+  mechanics:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test isolated 7e percentile kernel
+        run: node --test tests/coc7.test.mjs
+      - name: Check governing roadmap integrity
+        run: node scripts/verify-roadmap.mjs
