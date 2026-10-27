@@ -128,7 +128,7 @@
     summary.setAttribute('aria-label', 'Show project revision and progress basis');
     summary.append(make('span', 'p-revision', 'Rev ' + revision));
     summary.append(make('span', 'p-pct', roadmap ?
-      'Roadmap ' + roadmap.percent + '%' :
+      'Roadmap ' + (roadmap.data.version ? String(roadmap.data.version).split(' ')[0] + ' · ' : '') + roadmap.percent + '%' :
       (config.roadmap ? 'Roadmap —' :
        (count.percent === null ? 'Progress —' : String(count.percent) + '%'))));
     summary.append(make('span', 'p-more', '▾'));
@@ -136,6 +136,7 @@
     const body = make('div', 'p-detail');
     if (roadmap) {
       body.append(make('div', 'p-title', String(roadmap.data.label || 'Approved overall delivery roadmap')));
+      if (roadmap.data.version) body.append(make('p', '', 'Roadmap revision: ' + String(roadmap.data.version)));
       const bar = make('progress');
       bar.value = roadmap.done; bar.max = roadmap.total;
       bar.setAttribute('aria-label', 'Accepted overall roadmap weight');
