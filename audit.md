@@ -9,6 +9,7 @@
 - Defined Call of Cthulhu 7e as future deterministic engine, optional investigator sheets and qualitative task previews, private hidden dice/checks, full SAN/combat/occult/advancement, AI Keeper state, persistent NPC movement/memory, adventures and campaigns, position-aware HTML scenes and optional ambient music.
 - Uploaded official Keeper/Investigator source PDFs and seven scenario/campaign works recognized as **private references**; no copyrighted official material added to public GitHub.
 - Established `DEVELOPMENT-ROADMAP.md`, `AGENTS.md`, `site-progress.json` gate ledger, integrity validator and CI review to keep the site status synchronized.
+- Refined the published progress widget to show the separate roadmap revision (R1) beside game build and whole-project completion.
 - No gameplay/mechanics engine code was changed or tested as Call of Cthulhu. No Cloudflare Worker changes. Old v0.8.1 custom checks remain until safe migration.
 - Validation: 23 unique IDs; 100/100 weighted; accepted 18/100; 0/5 conversion; existing `index.html` includes `site-progress.js`. Further runtime smoke testing awaits an engineering rules milestone.
 
