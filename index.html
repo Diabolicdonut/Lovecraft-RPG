@@ -3427,7 +3427,7 @@ async function assessAction() {
       JSON.stringify({
         scene: publicActionContext(),
         publicScene: game.publicScene,
-        occupation: game.character.occupation,
+        occupation: hasCocMode() ? game.coc.investigator?.occupation : game.character.occupation,
         proposedAction: action
       }),
       "action_interpretation",
@@ -3578,6 +3578,8 @@ async function commitAction() {
   assessButton.disabled = true;
   commitButton.disabled = true;
   playerInput.disabled = true;
+  $("cocModeButton").disabled=true;
+  $("cocSheetButton").disabled=true;
   actionMessage.textContent = "Resolving locally…";
 
   const interp = currentAssessment.interpretation;
@@ -3616,6 +3618,7 @@ async function commitAction() {
       });
     }catch(error) {
       assessButton.disabled=false;playerInput.disabled=false;
+      $("cocModeButton").disabled=false;$("cocSheetButton").disabled=false;
       clearAssessment();actionMessage.textContent="CoC check unavailable: "+error.message;
       return;
     }
@@ -3853,6 +3856,8 @@ async function commitAction() {
   } finally {
     assessButton.disabled = false;
     playerInput.disabled = false;
+    $("cocModeButton").disabled=false;
+    $("cocSheetButton").disabled=false;
     playerInput.focus();
   }
 }
