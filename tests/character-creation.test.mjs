@@ -7,7 +7,7 @@ function seeded(seed=0x10203040){
  return ()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
 }
 test("two supported original career archetypes have valid budgets",()=>{
- assert.deepEqual(Object.keys(ARCHETYPES),["Archivist","Field Investigator"]);
+ assert.deepEqual(Object.keys(ARCHETYPES),["Archivist","Field Investigator","Newspaper Reporter","Laboratory Researcher"]);
  assert.equal(occupationBudget({EDU:75,DEX:50},"Archivist"),300);
  assert.equal(occupationBudget({EDU:75,DEX:50},"Field Investigator"),250);
 });
