@@ -53,7 +53,7 @@ export function validateInvestigator(candidate) {
  if(!name||name.length>100||!occupation||occupation.length>100) throw new Error("invalid investigator identity");
  checkInt(candidate.age,"age",15,120);
  const attributes={};
- for(const key of COC_ATTRIBUTES) attributes[key]=checkInt(candidate.attributes?.[key],key,1,100);
+ for(const key of COC_ATTRIBUTES) attributes[key]=checkInt(candidate.attributes?.[key],key,0,100);
  const skills={};
  for(const key of SKILL_NAMES) skills[key]=checkInt(candidate.skills?.[key],key,0,1000);
  const maxHP=Math.floor((attributes.CON+attributes.SIZ)/10);
