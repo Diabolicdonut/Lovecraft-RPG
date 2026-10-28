@@ -465,17 +465,26 @@
         <section class="panel">
           <div class="panel-body">
             <h2>Call of Cthulhu 7e · Pilot</h2>
-            <p class="help">Create an original 1920s investigator (ages 20–39) or inspect the provisional example. The full edition-wide character builder is still under development. The pilot supports investigative actions only.</p>
+            <p class="help">Create or customize a 1920s investigator (ages 15–89) with distinct occupational and personal-interest skill budgets. The CoC pilot supports investigative actions only.</p>
             <label for="cocNameInput">Investigator name</label>
             <input id="cocNameInput" type="text" maxlength="100" value="New Investigator"/>
             <label for="cocOccupationInput" style="margin-top:8px">Occupation archetype</label>
             <select id="cocOccupationInput" style="width:100%;padding:9px;background:#0a0d0f;color:var(--text);border:1px solid var(--border)">
-              <option>Archivist</option><option>Field Investigator</option>
+              <option>Archivist</option><option>Field Investigator</option><option>Newspaper Reporter</option><option>Laboratory Researcher</option>
             </select>
-            <label for="cocAgeInput" style="margin-top:8px">Age (20–39)</label>
-            <input id="cocAgeInput" type="number" min="20" max="39" value="27"/>
+            <label for="cocAgeInput" style="margin-top:8px">Age (15–89)</label>
+            <input id="cocAgeInput" type="number" min="15" max="89" value="27"/>
+            <label for="cocAgingAttribute">For age 40+, apply physical loss to this attribute first</label>
+            <select id="cocAgingAttribute" style="width:100%;padding:8px;background:#0a0d0f;color:var(--text)">
+              <option>STR</option><option>CON</option><option>DEX</option>
+            </select>
+            <label for="cocMinorAttribute">For age 15–19, apply physical loss to</label>
+            <select id="cocMinorAttribute" style="width:100%;padding:8px;background:#0a0d0f;color:var(--text)">
+              <option>STR</option><option>SIZ</option>
+            </select>
             <div class="buttons">
-              <button id="cocGenerateButton" type="button">Generate Investigator</button>
+              <button id="cocGenerateButton" type="button">Quick Generate</button>
+              <button id="cocCustomizeButton" type="button">Customize Skill Points</button>
               <button id="cocEditButton" type="button">Edit Name / Backstory</button>
             </div>
             <label style="margin-top:10px">
@@ -487,6 +496,15 @@
               <button id="cocModeButton" type="button">Enable CoC Pilot</button>
             </div>
             <div id="cocStatus" class="help" role="status">Legacy mechanics active. CoC pilot is opt-in.</div>
+            <details id="cocDraftDetails" style="margin-top:12px">
+              <summary>Character Creation · Assign Skill Points</summary>
+              <div id="cocDraftMessage" class="help"></div>
+              <div id="cocDraftEditor"></div>
+              <div class="buttons">
+                <button id="cocAutoPointsButton" type="button">Auto-Allocate Remaining</button>
+                <button id="cocFinalizeButton" type="button">Finish Investigator</button>
+              </div>
+            </details>
             <details id="cocSheetDetails" style="margin-top:12px">
               <summary style="cursor:pointer">Investigator Sheet</summary>
               <div id="cocSheetContent" class="details" style="margin-top:10px" aria-live="polite"></div>
@@ -624,7 +642,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.8.3 · Mystery Engine v0.2
+      Black Meridian · Browser Engine v0.8.4 · Mystery Engine v0.2
     </footer>
   </div>
 
@@ -643,7 +661,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.8.3";
+const APP_VERSION = "0.8.4";
 const DEBUG_REPORT_VERSION = 3;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -653,7 +671,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.8.3",
+    version: "0.8.4",
     coc: {mode:"legacy", investigator:null},
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
@@ -774,7 +792,7 @@ function migrateGameState(state) {
   const legacyNpcModel =
     state.mystery && mysteryUsesLegacyNpcModel(state.mystery);
 
-  state.version = "0.8.3";
+  state.version = "0.8.4";
   if(!state.coc || typeof state.coc!=="object") state.coc={mode:"legacy",investigator:null};
   if(!["legacy","coc-preview"].includes(state.coc.mode)) state.coc.mode="legacy";
 
@@ -912,8 +930,9 @@ async function cocModules() {
   if(!cocModulesPromise) cocModulesPromise=Promise.all([
     import("./engine/coc7.mjs"),
     import("./engine/investigator.mjs"),
-    import("./engine/character-creation.mjs")
-  ]).then(([kernel,investigator,creation])=>({kernel,investigator,creation})).catch(error=>{
+    import("./engine/character-creation.mjs"),
+    import("./engine/creation-planner.mjs")
+  ]).then(([kernel,investigator,creation,planner])=>({kernel,investigator,creation,planner})).catch(error=>{
     cocModulesPromise=null;
     throw error;
   });
@@ -925,6 +944,7 @@ function renderCocSheet() {
   const actor=game.coc?.investigator;
   box.replaceChildren();
   $("cocLuckOptional").checked=game.coc?.optionalLuck===true;
+  renderCocDraft();
   $("cocModeButton").textContent=hasCocMode()?"Return to Legacy Mode":"Enable CoC Pilot";
   $("cocStatus").textContent=hasCocMode()
     ?"CoC pilot active for supported investigative checks. Combat, Sanity, chases and other unsupported actions are blocked, never silently switched to legacy mechanics."
@@ -952,23 +972,111 @@ function renderCocSheet() {
   for(const [k,v] of Object.entries(actor.skills)) add(k,v+"%");
   add("Backstory",actor.backstory);
   if(actor.origin==="generated-20-39")add("Creation", "7e characteristic dice + age 20–39 adjustment + bounded occupation and personal interests");
+  if(actor.origin==="generated-custom-15-89")add("Creation", "7e age-adjusted dice and fully allocated occupation/personal points");
 }
 function createCocActorSafely() {
   game.coc ||= {mode:"legacy",investigator:null};
   return game.coc;
 }
-$("cocGenerateButton").addEventListener("click",async()=>{
-  if(playerInput.disabled===true && $("cocModeButton").disabled) return;
+async function renderCocDraft() {
+  const editor=$("cocDraftEditor"),message=$("cocDraftMessage");
+  const draft=game.coc?.creationDraft;
+  editor.replaceChildren();
+  $("cocAutoPointsButton").disabled=!draft;
+  $("cocFinalizeButton").disabled=!draft;
+  if(!draft) {
+    message.textContent="Choose Customize Skill Points to begin or resume a saved creation draft.";
+    return;
+  }
   try{
     const modules=await cocModules();
-    const name=$("cocNameInput").value.trim();
-    const age=Number($("cocAgeInput").value);
-    const occupation=$("cocOccupationInput").value;
-    const actor=modules.creation.createInvestigator({name,age,occupation});
-    if(game.coc?.investigator && !confirm("Replace the current CoC investigator? The earlier character will be preserved only in previous exports."))return;
+    const d=modules.planner.validateCreationDraft(draft);
+    message.textContent="Occupation points: "+d.occupationRemaining+"/"+d.occupationBudget+
+      " remaining · Personal interests: "+d.personalRemaining+"/"+d.personalBudget+" remaining. "+
+      "Credit Rating must remain within the occupation's permitted range.";
+    const list=document.createElement("div");
+    list.style.display="grid";list.style.gap="6px";
+    const keys=Object.keys(d.baseSkills);
+    const occupationSkills=new Set(modules.planner.PLANNER_OCCUPATIONS[d.occupation].skills);
+    for(const skill of keys){
+      if(skill==="Cthulhu Mythos")continue;
+      const row=document.createElement("div");row.style.display="grid";
+      row.style.gridTemplateColumns="minmax(110px,1fr) 72px 72px";
+      row.style.gap="6px";row.style.alignItems="center";
+      const label=document.createElement("span");
+      label.textContent=skill+" ("+(d.baseSkills[skill]+d.occupationPoints[skill]+d.personalPoints[skill])+"%)";
+      row.append(label);
+      for(const pool of ["occupation","personal"]){
+        const allowed=pool==="occupation"?occupationSkills.has(skill):skill!=="Credit Rating";
+        const wrap=document.createElement("label");wrap.style.fontSize="11px";
+        wrap.textContent=pool==="occupation"?"Career":"Interest";
+        const field=document.createElement("input");
+        field.type="number";field.min="0";field.max="99";field.step="1";
+        field.value=String(d[pool==="occupation"?"occupationPoints":"personalPoints"][skill]);
+        field.disabled=!allowed||$("cocModeButton").disabled;
+        field.title=pool+" points assigned to "+skill;
+        field.style.width="100%";field.style.padding="4px";
+        field.addEventListener("change",()=>{
+          if($("cocModeButton").disabled)return;
+          try{
+            const next=modules.planner.setCreationPoints(game.coc.creationDraft,{
+              skill,pool,points:Number(field.value)});
+            game.coc.creationDraft=next;saveGame();
+          }catch(error){
+            message.textContent="Invalid assignment: "+error.message;
+            field.value=String(d[pool==="occupation"?"occupationPoints":"personalPoints"][skill]);
+          }
+        });
+        wrap.append(field);row.append(wrap);
+      }
+      list.append(row);
+    }
+    editor.append(list);
+  }catch(error){message.textContent="Creation draft needs correction: "+error.message;}
+}
+function cocCreationOptions(){
+  return {name:$("cocNameInput").value.trim(),occupation:$("cocOccupationInput").value,
+    age:Number($("cocAgeInput").value),agingAttribute:$("cocAgingAttribute").value,
+    minorLossAttribute:$("cocMinorAttribute").value};
+}
+$("cocCustomizeButton").addEventListener("click",async()=>{
+  if($("cocModeButton").disabled)return;
+  try{
+    if(game.coc?.creationDraft && !confirm("Replace the unfinished skill allocation draft?"))return;
+    const modules=await cocModules();
+    const draft=modules.planner.rollCreationDraft(cocCreationOptions());
+    createCocActorSafely().creationDraft=draft;
+    saveGame();$("cocDraftDetails").open=true;
+  }catch(error){$("cocStatus").textContent="Draft generation failed: "+error.message;}
+});
+$("cocAutoPointsButton").addEventListener("click",async()=>{
+  if($("cocModeButton").disabled)return;
+  try{
+    const modules=await cocModules();
+    createCocActorSafely().creationDraft=modules.planner.autoAllocateRemaining(game.coc.creationDraft);
+    saveGame();
+  }catch(error){$("cocDraftMessage").textContent="Allocation failed: "+error.message;}
+});
+$("cocFinalizeButton").addEventListener("click",async()=>{
+  if($("cocModeButton").disabled)return;
+  try{
+    const modules=await cocModules();
+    const actor=modules.planner.completeCreationDraft(game.coc.creationDraft);
+    if(game.coc?.investigator && !confirm("Replace the current investigator with this finished character?"))return;
+    const state=createCocActorSafely();state.investigator=actor;
+    delete state.creationDraft;clearAssessment();saveGame();
+    $("cocSheetDetails").open=true;$("cocDraftDetails").open=false;
+  }catch(error){$("cocDraftMessage").textContent="Cannot finish: "+error.message;}
+});
+$("cocGenerateButton").addEventListener("click",async()=>{
+  if($("cocModeButton").disabled)return;
+  try{
+    const modules=await cocModules();
+    const draft=modules.planner.rollCreationDraft(cocCreationOptions());
+    const actor=modules.planner.completeCreationDraft(modules.planner.autoAllocateRemaining(draft));
+    if(game.coc?.investigator && !confirm("Replace the current CoC investigator? The earlier character remains only in previous exports."))return;
     createCocActorSafely().investigator=actor;
-    clearAssessment(); saveGame();
-    $("cocSheetDetails").open=true;
+    clearAssessment();saveGame();$("cocSheetDetails").open=true;
   }catch(error){$("cocStatus").textContent="Generation failed: "+error.message;}
 });
 $("cocEditButton").addEventListener("click",async()=>{
@@ -3675,7 +3783,7 @@ async function commitAction() {
   assessButton.disabled = true;
   commitButton.disabled = true;
   playerInput.disabled = true;
-  for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+  for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocCustomizeButton","cocEditButton","cocLuckOptional","cocAutoPointsButton","cocFinalizeButton","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
     $(id).disabled=true;
   actionMessage.textContent = "Resolving locally…";
 
@@ -3715,7 +3823,7 @@ async function commitAction() {
       });
     }catch(error) {
       assessButton.disabled=false;playerInput.disabled=false;
-      for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+      for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocCustomizeButton","cocEditButton","cocLuckOptional","cocAutoPointsButton","cocFinalizeButton","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
         $(id).disabled=false;
       clearAssessment();actionMessage.textContent="CoC check unavailable: "+error.message;
       return;
@@ -3989,7 +4097,7 @@ async function commitAction() {
   } finally {
     assessButton.disabled = false;
     playerInput.disabled = false;
-    for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+    for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocCustomizeButton","cocEditButton","cocLuckOptional","cocAutoPointsButton","cocFinalizeButton","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
       $(id).disabled=false;
     playerInput.focus();
   }
