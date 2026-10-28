@@ -1,0 +1,43 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+const html=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
+const original=html.match(/<script>([\s\S]*?)<\/script>/);
+test("entire browser application inline script compiles on Node V8",()=>{
+ assert.ok(original,"inline game script");
+ assert.doesNotThrow(()=>new vm.Script(original[1],{filename:"index.html"}));
+});
+test("version, status widget and scenario generation retained",()=>{
+ assert.match(html,/const APP_VERSION = "0\.8\.2";/);
+ assert.match(html,/site-progress\.js/);
+ assert.match(html,/async function createPremiseContract/);
+ assert.match(html,/const MYSTERY_SCHEMA =/);
+ assert.match(html,/function renderCaseSummary/);
+});
+test("CoC demo sheet is on-demand and never silently derived from legacy stats",()=>{
+ assert.match(html,/id="cocSheetButton"/);
+ assert.match(html,/id="cocSheetDetails"/);
+ assert.match(html,/createPrototypeInvestigator\(\)/);
+ assert.match(html,/validateInvestigator\(game\.coc\.investigator\)/);
+ assert.match(html,/state\.coc=\{mode:"legacy",investigator:null\}/);
+ assert.match(html,/game = migrateGameState\(parsed\)/);
+});
+test("opt-in mode is explicit and gates unsupported CoC actions",()=>{
+ assert.match(html,/id="cocModeButton"/);
+ assert.match(html,/hasCocMode\(\)/);
+ assert.match(html,/modules\.investigator\.previewAction/);
+ assert.match(html,/modules\.kernel\.check/);
+ assert.match(html,/outcomeForLegacyDiscovery\(cocResolution\)/);
+});
+test("CoC pilot does not use legacy raw percentile resolution",()=>{
+ assert.match(html,/const roll=deterministicMove\|\|hasCocMode\(\)\?null:cryptoD100\(\)/);
+ assert.match(html,/if\(hasCocMode\(\) && !deterministicMove\)/);
+ assert.match(html,/if\(hasCocMode\(\)!==Boolean\(currentAssessment\.pilot\)/);
+});
+test("CoC action UI obscures dice and does not use generic success labels",()=>{
+ assert.match(html,/hasCocMode\(\) \? "CoC result recorded privately/);
+ assert.match(html,/addEntry\("narrator", "Keeper", narration\)/);
+ assert.match(html,/item\.cocPilot \? "Keeper" : item\.outcome/);
+ assert.match(html,/Action resolved ·/);
+});
