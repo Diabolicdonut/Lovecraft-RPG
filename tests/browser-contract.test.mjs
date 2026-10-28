@@ -9,7 +9,7 @@ test("entire browser application inline script compiles on Node V8",()=>{
  assert.doesNotThrow(()=>new vm.Script(original[1],{filename:"index.html"}));
 });
 test("version, status widget and scenario generation retained",()=>{
- assert.match(html,/const APP_VERSION = "0\.8\.3";/);
+ assert.match(html,/const APP_VERSION = "0\.8\.4";/);
  assert.match(html,/site-progress\.js/);
  assert.match(html,/async function createPremiseContract/);
  assert.match(html,/const MYSTERY_SCHEMA =/);
@@ -67,4 +67,17 @@ test("overt push and Luck chooser is visible beside action composer",()=>{
  const commit=html.indexOf('id="commitButton"');
  assert.ok(composer>=0&&chooser>composer&&commit>chooser);
  assert.match(html,/panel\.scrollIntoView/);
+});
+
+test("COC-005 custom creation is accessible and retains serialized point ledger",()=>{
+ assert.match(html,/id="cocCustomizeButton"/);
+ assert.match(html,/id="cocDraftDetails"/);
+ assert.match(html,/id="cocDraftEditor"/);
+ assert.match(html,/id="cocAutoPointsButton"/);
+ assert.match(html,/id="cocFinalizeButton"/);
+ assert.match(html,/engine\/creation-planner\.mjs/);
+ assert.match(html,/createCocActorSafely\(\)\.creationDraft=draft/);
+ assert.match(html,/setCreationPoints\(game\.coc\.creationDraft/);
+ assert.match(html,/completeCreationDraft\(game\.coc\.creationDraft\)/);
+ assert.match(html,/cocModeButton"\)\.disabled/);
 });
