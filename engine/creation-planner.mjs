@@ -129,7 +129,7 @@ export function validateCreationDraft(draft){
   attributes,luck:draft.luck,baseSkills:b,occupationBudget,personalBudget:attributes.INT*2,
   occupationPoints,personalPoints,occupationSpent,personalSpent,
   occupationRemaining:occupationBudget-occupationSpent,
-  personalRemaining:personalBudget-personalSpent
+  personalRemaining:attributes.INT*2-personalSpent
  };
 }
 export function setCreationPoints(draft,{skill,pool,points}={}){
