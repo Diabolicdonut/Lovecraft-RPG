@@ -56,7 +56,7 @@ test("COC-003: generated character form, direct CoC schema and overt consent are
  assert.match(html,/optionalLuck/);
 });
 test("CoC resolution locks import, reset, creation and mode switches while awaiting choice",()=>{
- assert.match(html,/cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton"/);
+ assert.match(html,/cocGenerateButton","cocCustomizeButton","cocEditButton","cocLuckOptional","cocAutoPointsButton","cocFinalizeButton","resetButton","importButton"/);
  assert.match(html,/if\(cocChoice==="push" && !cocResolution.success\)/);
  assert.match(html,/The second attempt failed/);
 });
