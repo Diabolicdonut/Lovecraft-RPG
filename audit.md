@@ -1,6 +1,18 @@
 # Black Meridian — Audit / Change Log
 
-> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version remains **0.8.1**. Do not mark an incomplete rules gate accepted.
+> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version now **0.8.2**, with optional pilot. Do not mark an incomplete rules gate accepted.
+
+## v0.8.2 — COC-002: Provisional investigator sheet and opt-in CoC checks (2026-10-27)
+
+- Added `engine/investigator.mjs`: strict numerical 7e pilot profile with characteristics, derived HP/MP/SAN, skill set, prototype defaults and validation; no invented conversion of prior generic stats. This is **not yet a complete rules-legal character generator**.
+- Added on-demand character-sheet panel and **opt-in** CoC Pilot switch. Legacy remains the default. Mode and profile persist with older saves migrated into an independent `coc` field; import runs the same migration.
+- Added bounded CoC task interpretation for observation, research, social, stealth and technical checks, with strict skill mapping and apparent qualitative likelihood. Hidden clue difficulty affects actual checks but does not leak into the player's preview.
+- Integrated pure CoC percentile kernel for pilot skill rolls, with no generic dice fallback for pilot actions; unsupported combat, Sanity, physical danger and other categories are rejected rather than secretly decided via the legacy system. Legacy clue discovery/time code is retained solely as an explicit compatibility adapter.
+- Added `tests/investigator.test.mjs` (8 tests) and `tests/browser-contract.test.mjs` (6 tests). Updated CoC CI workflow to run all tests, and audit/documented missing systems. Browser script syntax and structure are validated by Node compilation checks.
+- Normal pilot gameplay hides rolls and raw targets, including debug panel and narration-error fallbacks; privileged state/debug exports still contain referee information and are not cryptographically private.
+- **Unimplemented:** exact occupational creation point budgets, full CoC skill catalog, fully editable sheet, push/Luck interactive transactions, combat/chase/SAN, proper opposed NPC adjudication, complete CoC mystery integration and manual Worker/browser testing.
+- **Validation / acceptance:** 11 prior kernel tests + 8 investigator tests + 6 browser checks (25 tests; GitHub Actions CI); roadmap integrity must pass. Gates stay partial, score **18/100** and conversion **0/5**, because no complete gate qualifies. Current released UI now v0.8.2.
+- **Next:** COC-003, complete sheet creation/editing and direct CoC skill requests, stateful push/Luck and more authoritative AI Keeper action contracts.
 
 ## 2026-10-27 — COC-001: 7th Edition percentile kernel (isolated engineering checkpoint)
 
@@ -20,13 +32,13 @@
 - Uploaded official Keeper/Investigator source PDFs and seven scenario/campaign works recognized as **private references**; no copyrighted official material added to public GitHub.
 - Established `DEVELOPMENT-ROADMAP.md`, `AGENTS.md`, `site-progress.json` gate ledger, integrity validator and CI review to keep the site status synchronized.
 - Refined the published progress widget to show the separate roadmap revision (R1) beside game build and whole-project completion.
-- No gameplay/mechanics engine code was changed or tested as Call of Cthulhu. No Cloudflare Worker changes. Old v0.8.1 custom checks remain until safe migration.
+- At the roadmap establishment checkpoint, no gameplay/mechanics code had yet changed; COC-001 and COC-002 are documented above. No Cloudflare Worker changes. Old v0.8.1 custom checks remain until safe migration.
 - Validation: 23 unique IDs; 100/100 weighted; accepted 18/100; 0/5 conversion; existing `index.html` includes `site-progress.js`. Further runtime smoke testing awaits an engineering rules milestone.
 
 
 ## Current Build
 
-**Version:** 0.8.1  
+**Version:** 0.8.2  
 **Mystery Engine:** v0.2  
 **Architecture:** Browser-side game engine with Cloudflare used only as a protected OpenAI proxy.
 

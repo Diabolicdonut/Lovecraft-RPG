@@ -1,6 +1,6 @@
 # BLACK MERIDIAN — DEVELOPMENT ROADMAP
 
-**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.1 (unchanged) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
+**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.2 (CoC pilot opt-in) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
 
 > This is the governing **entire-product scope and milestone acceptance contract**. `site-progress.json` is its machine-readable progress ledger; `ROADMAP-COVERAGE.md` is a compact derived summary. No old generic probability mechanism is a target architecture. Older audit entries are historical, not an alternative specification.
 
@@ -45,7 +45,7 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 | `f-persistence` | Save, import/export and sanitized debug foundations | 4 | accepted |
 | `g-governance` | Versioned roadmap, rule provenance and distribution policy | 3 | partial |
 | `r-authority` | 7th Edition rules coverage and compatibility matrix | 4 | partial |
-| `r-investigator` | Full optional investigator sheets and creation | 6 | planned |
+| `r-investigator` | Full optional investigator sheets and creation | 6 | partial |
 | `r-percentile` | Deterministic secret d100 rules and opposed resolution | 7 | partial |
 | `r-preview` | Intelligible competence and risk previews without dice | 4 | partial |
 | `r-combat` | Combat, weapons, pursuit and environmental hazards | 5 | planned |
@@ -72,6 +72,15 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 ### COC-001 test checkpoint · 2026-10-27
 
 Isolated rule kernel and tests are in GitHub; [rules coverage and missing sections](docs/COC-7E-RULES-COVERAGE.md). The live browser engine remains unchanged. The 11-test mechanical suite and roadmap integrity checks passed in CI. **No full-gate points awarded** because live conversion, several rule categories and licensing review remain incomplete.
+
+### COC-002 · 2026-10-27 — Opt-in investigator and investigation pilot
+
+- **Working experimental UI:** `index.html` v0.8.2 can create/view a **provisional** numeric CoC investigator, retain it in a versioned separate save field, and switch between legacy mechanics and a controlled pilot. The sheet is not yet a rules-legal character builder or complete skill catalog.
+- **Action preview:** new `engine/investigator.mjs` maps a bounded subset of legacy interpreter intents to appropriate CoC skills, calculates apparent Regular/Hard/Extreme success likelihood internally, and displays a competence / risk band without roll mathematics. Concealed clue difficulty is applied only during resolution, never leaked in preview.
+- **Action resolution:** opt-in investigative attempts call `engine/coc7.mjs`, with privileged numeric result held in debug/history, and public narration seeing only the authorized coarse result. Existing clue discovery/time machinery is an explicitly identified **compatibility adapter**, not an assertion of full CoC runtime parity. Unmapped actions (including combat, Sanity, chases and medical mechanics) are blocked in pilot mode. No silent return to the generic dice engine.
+- **Validation:** isolated kernel + new profile tests + static/compilation browser contract checks; GitHub Actions checks. Manual Cloudflare/browser end-to-end gameplay still pending. `r-investigator`, `r-percentile`, `r-preview`, `k-keeper` remain **partial**. **Full-product score stays 18/100; transition 0/5**.
+
+**Next COC-003:** full source-matched 7e investigator creation, an editable persistent sheet, direct CoC skill selection (instead of strict generic capability adapter), safer Keeper authorization for secret/contested checks, player-managed pushed/Luck decisions, and manual scenario smoke testing; preserve older saves.
 
 ## 5. Detailed milestones and acceptance conditions
 
@@ -129,13 +138,13 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Evidence today:** docs/COC-7E-RULES-COVERAGE.md (COC-001 chapter mapping; many systems not yet implemented, full acceptance blocked)
 
-### r-investigator — Full optional investigator sheets and creation (6 points; planned)
+### r-investigator — Full optional investigator sheets and creation (6 points; partial)
 
 **Scope:** Characteristics, derived statistics, full skills, occupations, credit rating, age effects, backstory, belongings, era, creation and import.
 
 **Acceptance:** Create/edit/save multiple example investigators; on-demand player-facing sheet presents accurate values while routine turns stay narrative-first.
 
-**Evidence today:** Pending implemented character creation
+**Evidence today:** engine/investigator.mjs and optional numeric prototype sheet in index.html v0.8.2, tests/investigator.test.mjs (full rule-legal creation and editing pending)
 
 ### r-percentile — Deterministic secret d100 rules and opposed resolution (7 points; partial)
 
@@ -143,7 +152,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Table-driven and statistical parity tests pass; AI cannot override result or generate rolls; rolls never appear in normal narrative.
 
-**Evidence today:** engine/coc7.mjs; tests/coc7.test.mjs; GitHub Actions COC-001 kernel tests PASS (isolated only; not wired into game)
+**Evidence today:** engine/coc7.mjs; tests/coc7.test.mjs; pilot opt-in in index.html v0.8.2; tests/browser-contract.test.mjs (partial live investigative integration, no combat/SAN)
 
 ### r-preview — Intelligible competence and risk previews without dice (4 points; partial)
 
@@ -151,7 +160,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Calibrated CoC probabilities produce honest plain-language bands before commitment; avoid spoiler leaks and deny false precision under hidden opposition.
 
-**Evidence today:** index.html has former qualitative action assessments; CoC conversion pending
+**Evidence today:** engine/investigator.mjs previewAction; tests/investigator.test.mjs; index.html v0.8.2 pilot (apparent qualitative likelihood, hidden difficulty is not disclosed; calibration incomplete)
 
 ### r-combat — Combat, weapons, pursuit and environmental hazards (5 points; planned)
 
@@ -277,7 +286,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **COC-001 implemented (isolated):** produced `docs/COC-7E-RULES-COVERAGE.md`, `engine/coc7.mjs` and `tests/coc7.test.mjs`; successful GitHub Actions test on 2026-10-27. This is preparatory work, not a live conversion or accepted full gate.
 
-**Next checkpoint COC-002:** create full 7e investigator data model and on-demand sheet; calibrate risk estimates against percentile checks; route bounded AI action requests to the kernel with save migration and scenario smoke tests **before** switching existing adjudication. Preserve stable v0.8.1 until verified.
+**COC-002 shipped as opt-in pilot (v0.8.2):** bounded investigator sheet and investigative CoC checks; legacy play remains the default. **Next COC-003:** complete rule-legal investigator builder, direct CoC skill classification and stateful pushed/Luck choices, plus browser/Worker acceptance testing; do not yet claim full rules conversion.
 
 **Milestone A — mechanical spine:** g-governance → r-authority → r-percentile → r-investigator → r-preview. Implement sheet view and natural-language action pipeline together so the player immediately has meaningful agency without visible rolls.
 
@@ -305,7 +314,7 @@ There is no hard coupling that prevents starting the graphical scene model befor
 
 ## 8. Known gaps / unimplemented as of R1
 
-Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing game v0.8.1 still uses its **earlier** custom resolution engine.
+Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing default mode still uses the earlier generic engine; v0.8.2 offers a clearly labeled, limited CoC investigative pilot and blocks unsupported CoC actions.
 
 ## 9. Supporting documents
 

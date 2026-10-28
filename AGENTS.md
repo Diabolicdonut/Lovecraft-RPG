@@ -19,4 +19,4 @@
 5. Accept a gate only when its acceptance contract is fully met and independently verified, evidence documented and no regression in v0.8.1 foundations. Partial gate status earns zero weighted points.
 6. Prefer atomic/reviewable commits, retain old save migrations, never put GAME_TOKEN or API keys in commits/debug exports.
 
-**Next implementation:** document CoC 7e rules authority and write deterministic secret-d100 tests (g-governance + r-authority + r-percentile), then add character sheet and natural-language previews. Read the detailed roadmap first.
+**Next implementation:** COC-003: expand the v0.8.2 opt-in pilot into a complete 7e investigator creation/editing system with direct CoC skill requests, controlled push/Luck decisions, strengthened Keeper boundaries and real browser/Worker smoke testing. Keep legacy as a clearly labeled safe fallback until conversion gates are accepted.
