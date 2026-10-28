@@ -77,8 +77,14 @@ export function cocSkillForLegacy(interp) {
  if(!["observe","research","social","stealth","technical"].includes(interp.actionType))
    throw new Error("This action category is not supported by CoC preview mode yet");
  if(interp.targetType==="none")throw new Error("Target is not established in the public scene");
- const key=LEGACY_TO_COC[interp.skill];
- if(!key)throw new Error("No verified CoC mapping for this action");
+ // COC-003: the AI interpreter can now submit canonical 7e skill names directly.
+ // Legacy names are accepted only by the dedicated v0.8 migration adapter.
+ const raw=String(interp.skill||"");
+ const key=Object.hasOwn(COC_SKILL_DEFAULTS,raw) ? raw : LEGACY_TO_COC[raw];
+ if(!key || !Object.hasOwn(COC_SKILL_DEFAULTS,key))
+   throw new Error("No verified CoC skill mapping for this action");
+ if(key==="Cthulhu Mythos" && interp.actionType==="social")
+   throw new Error("Mythos knowledge is not an interpersonal shortcut");
  return key;
 }
 export function apparentDifficulty(interp) {
