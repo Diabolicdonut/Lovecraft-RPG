@@ -1,14 +1,16 @@
-name: Black Meridian CoC kernel tests
+name: Black Meridian CoC rules and browser tests
 on:
   push:
     paths:
       - 'engine/**'
+      - 'index.html'
       - 'tests/**'
       - 'docs/COC-7E-RULES-COVERAGE.md'
       - '.github/workflows/coc-kernel-tests.yml'
   pull_request:
     paths:
       - 'engine/**'
+      - 'index.html'
       - 'tests/**'
       - 'docs/COC-7E-RULES-COVERAGE.md'
       - '.github/workflows/coc-kernel-tests.yml'
@@ -22,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test isolated 7e percentile kernel
-        run: node --test tests/coc7.test.mjs
+      - name: Test 7e kernel, investigators and browser contracts
+        run: node --test tests/*.test.mjs
       - name: Check governing roadmap integrity
         run: node scripts/verify-roadmap.mjs
