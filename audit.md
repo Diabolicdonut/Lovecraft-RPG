@@ -5,7 +5,8 @@
 ## v0.8.2 — COC-002: Provisional investigator sheet and opt-in CoC checks (2026-10-27)
 
 - Added `engine/investigator.mjs`: strict numerical 7e pilot profile with characteristics, derived HP/MP/SAN, skill set, prototype defaults and validation; no invented conversion of prior generic stats. This is **not yet a complete rules-legal character generator**.
-- Added on-demand character-sheet panel and **opt-in** CoC Pilot switch. Legacy remains the default. Mode and profile persist with older saves migrated into an independent `coc` field; import runs the same migration.
+- Added on-demand character-sheet panel and **opt-in** CoC Pilot switch. Legacy remains the default.
+- The action interpreter uses the active pilot occupation, while pilot-mode switches and sheet creation are locked during ongoing action resolution to prevent cross-mode races. Mode and profile persist with older saves migrated into an independent `coc` field; import runs the same migration.
 - Added bounded CoC task interpretation for observation, research, social, stealth and technical checks, with strict skill mapping and apparent qualitative likelihood. Hidden clue difficulty affects actual checks but does not leak into the player's preview.
 - Integrated pure CoC percentile kernel for pilot skill rolls, with no generic dice fallback for pilot actions; unsupported combat, Sanity, physical danger and other categories are rejected rather than secretly decided via the legacy system. Legacy clue discovery/time code is retained solely as an explicit compatibility adapter.
 - Added `tests/investigator.test.mjs` (8 tests) and `tests/browser-contract.test.mjs` (6 tests). Updated CoC CI workflow to run all tests, and audit/documented missing systems. Browser script syntax and structure are validated by Node compilation checks.
