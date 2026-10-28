@@ -487,12 +487,6 @@
               <button id="cocModeButton" type="button">Enable CoC Pilot</button>
             </div>
             <div id="cocStatus" class="help" role="status">Legacy mechanics active. CoC pilot is opt-in.</div>
-            <div id="cocDecisionPanel" class="assessment" style="display:none" aria-live="polite">
-              <p id="cocDecisionText"></p>
-              <label for="cocPushApproach">If you push, describe a new approach and accept the greater consequences of another failure.</label>
-              <input id="cocPushApproach" maxlength="260" placeholder="I take more time and try another method"/>
-              <div class="buttons" id="cocDecisionActions"></div>
-            </div>
             <details id="cocSheetDetails" style="margin-top:12px">
               <summary style="cursor:pointer">Investigator Sheet</summary>
               <div id="cocSheetContent" class="details" style="margin-top:10px" aria-live="polite"></div>
@@ -610,6 +604,13 @@
             <div id="assessmentBasis" class="help"></div>
             <div id="debugAssessment" class="debug" style="display:none"></div>
           </div>
+
+            <div id="cocDecisionPanel" class="assessment" style="display:none" aria-live="polite">
+              <p id="cocDecisionText"></p>
+              <label for="cocPushApproach">If you push, describe a new approach and accept the greater consequences of another failure.</label>
+              <input id="cocPushApproach" maxlength="260" placeholder="I take more time and try another method"/>
+              <div class="buttons" id="cocDecisionActions"></div>
+            </div>
 
           <div class="buttons">
             <button id="assessButton" class="primary" disabled>Assess Action</button>
@@ -992,6 +993,7 @@ function requestOvertCocDecision({availableLuck,canSpendLuck}) {
     const panel=$("cocDecisionPanel"),actions=$("cocDecisionActions");
     const text=$("cocDecisionText"),approach=$("cocPushApproach");
     panel.style.display="block";actions.replaceChildren();approach.value="";
+    panel.scrollIntoView({block:"nearest",behavior:"smooth"});
     text.textContent="This overt attempt has not succeeded. You may accept the setback, or justify one more attempt at greater risk."+
       (canSpendLuck?" Optional Luck can secure this attempt for "+availableLuck+" point(s).":"");
     const choice=(label,handler)=>{
