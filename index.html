@@ -461,6 +461,23 @@
           </div>
         </section>
 
+
+        <section class="panel">
+          <div class="panel-body">
+            <h2>Call of Cthulhu 7e · Pilot</h2>
+            <p class="help">Provisional character values for testing. This is not complete rules-legal investigator creation. CoC pilot checks are optional and limited to supported investigative actions.</p>
+            <div class="buttons">
+              <button id="cocSheetButton" type="button">Create / View Investigator Sheet</button>
+              <button id="cocModeButton" type="button">Enable CoC Pilot</button>
+            </div>
+            <div id="cocStatus" class="help" role="status">Legacy mechanics active. CoC pilot is opt-in.</div>
+            <details id="cocSheetDetails" style="margin-top:12px">
+              <summary style="cursor:pointer">Investigator Sheet</summary>
+              <div id="cocSheetContent" class="details" style="margin-top:10px" aria-live="polite"></div>
+            </details>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel-body">
             <h2>Case Generator</h2>
@@ -584,7 +601,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.8.1 · Mystery Engine v0.2
+      Black Meridian · Browser Engine v0.8.2 · Mystery Engine v0.2
     </footer>
   </div>
 
@@ -603,7 +620,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.8.1";
+const APP_VERSION = "0.8.2";
 const DEBUG_REPORT_VERSION = 3;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -613,7 +630,8 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.8.1",
+    version: "0.8.2",
+    coc: {mode:"legacy", investigator:null},
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
 
@@ -733,7 +751,9 @@ function migrateGameState(state) {
   const legacyNpcModel =
     state.mystery && mysteryUsesLegacyNpcModel(state.mystery);
 
-  state.version = "0.8.1";
+  state.version = "0.8.2";
+  if(!state.coc || typeof state.coc!=="object") state.coc={mode:"legacy",investigator:null};
+  if(!["legacy","coc-preview"].includes(state.coc.mode)) state.coc.mode="legacy";
 
   if (!("currentLocationId" in state)) {
     state.currentLocationId = state.mystery?.startLocationId || null;
@@ -864,6 +884,77 @@ const assessmentReason = $("assessmentReason");
 const assessmentBasis = $("assessmentBasis");
 const debugAssessment = $("debugAssessment");
 const debugToggle = $("debugToggle");
+let cocModulesPromise;
+async function cocModules() {
+  if(!cocModulesPromise) cocModulesPromise=Promise.all([
+    import("./engine/coc7.mjs"),
+    import("./engine/investigator.mjs")
+  ]).then(([kernel,investigator])=>({kernel,investigator})).catch(error=>{
+    cocModulesPromise=null;
+    throw error;
+  });
+  return cocModulesPromise;
+}
+function hasCocMode() { return game.coc?.mode==="coc-preview"; }
+function renderCocSheet() {
+  const box=$("cocSheetContent");
+  const actor=game.coc?.investigator;
+  box.replaceChildren();
+  $("cocModeButton").textContent=hasCocMode()?"Return to Legacy Mode":"Enable CoC Pilot";
+  $("cocStatus").textContent=hasCocMode()
+    ?"CoC pilot active for supported investigative checks. Combat, Sanity, chases and other unsupported actions are blocked, never silently switched to legacy mechanics."
+    :"Legacy mechanics active. CoC pilot is opt-in.";
+  if(!actor) {
+    const p=document.createElement("p");
+    p.textContent="No pilot sheet created yet. Use Create / View Investigator Sheet.";
+    box.append(p);
+    return;
+  }
+  const add=(label,value)=>{
+    const p=document.createElement("div");
+    const strong=document.createElement("strong");
+    strong.textContent=label+": ";
+    p.append(strong,document.createTextNode(String(value)));
+    box.append(p);
+  };
+  add("Name",actor.name);add("Occupation",actor.occupation);
+  add("Age",actor.age);
+  add("HP",actor.hitPoints+"/"+actor.maxHitPoints);
+  add("Sanity",actor.sanity+"/"+actor.maxSanity);
+  add("Magic Points",actor.magicPoints+"/"+actor.maxMagicPoints);
+  add("Luck",actor.luck);
+  for(const [k,v] of Object.entries(actor.attributes)) add(k,v);
+  for(const [k,v] of Object.entries(actor.skills)) add(k,v+"%");
+  add("Backstory",actor.backstory);
+}
+$("cocSheetButton").addEventListener("click",async()=>{
+  try{
+    const modules=await cocModules();
+    game.coc ||= {mode:"legacy",investigator:null};
+    game.coc.investigator=game.coc.investigator
+      ? modules.investigator.validateInvestigator(game.coc.investigator)
+      : modules.investigator.createPrototypeInvestigator();
+    saveGame();$("cocSheetDetails").open=true;
+  }catch(error){$("cocStatus").textContent="Unable to open sheet: "+error.message;}
+});
+$("cocModeButton").addEventListener("click",async()=>{
+  try{
+    if(hasCocMode()) {
+      game.coc.mode="legacy";
+    } else {
+      const modules=await cocModules();
+      game.coc ||= {mode:"legacy",investigator:null};
+      game.coc.investigator=game.coc.investigator
+        ? modules.investigator.validateInvestigator(game.coc.investigator)
+        : modules.investigator.createPrototypeInvestigator();
+      game.coc.mode="coc-preview";
+    }
+    clearAssessment();
+    saveGame();
+  }catch(error){
+    $("cocStatus").textContent="CoC pilot unavailable: "+error.message;
+  }
+});
 
 if (gameToken) tokenInput.value = gameToken;
 
@@ -1355,7 +1446,7 @@ async function importGameFile(file) {
     throw new Error("That file does not look like a Lovecraft RPG save.");
   }
 
-  game = parsed;
+  game = migrateGameState(parsed);
   saveGame();
   renderHistory();
   clearAssessment();
@@ -1716,6 +1807,10 @@ function setConnected(value) {
 // ============================================================================
 
 function conditionText() {
+  if(hasCocMode()) {
+    const p=game.coc.investigator;
+    return p ? "HP "+p.hitPoints+"/"+p.maxHitPoints : "Pilot profile missing";
+  }
   const hp = game.character.health;
   if (hp >= 90) return "Uninjured";
   if (hp >= 70) return "Lightly injured";
@@ -1725,6 +1820,7 @@ function conditionText() {
 }
 
 function composureText() {
+  if(hasCocMode()) return game.coc.investigator ? "SAN "+game.coc.investigator.sanity : "Unknown";
   const value = game.character.composure;
   if (value >= 80) return "Calm";
   if (value >= 65) return "Steady";
@@ -1745,13 +1841,14 @@ function makeTags(container, values) {
 }
 
 function renderGame() {
-  $("characterName").textContent = game.character.name;
-  $("characterOccupation").textContent = game.character.occupation;
+  $("characterName").textContent = hasCocMode() ? game.coc.investigator?.name||"No pilot" : game.character.name;
+  $("characterOccupation").textContent = hasCocMode() ? game.coc.investigator?.occupation||"Unassigned" : game.character.occupation;
   $("characterCondition").textContent = conditionText();
   $("characterComposure").textContent = composureText();
 
-  makeTags($("strengths"), game.character.strengths);
-  makeTags($("weaknesses"), game.character.weaknesses);
+  makeTags($("strengths"), hasCocMode() ? ["CoC 7e pilot","Numerical sheet below"] : game.character.strengths);
+  makeTags($("weaknesses"), hasCocMode() ? ["Combat and Sanity not yet connected"] : game.character.weaknesses);
+  renderCocSheet();
 
   $("turnDisplay").textContent = game.turn;
   $("locationDisplay").textContent = game.location;
@@ -1806,7 +1903,7 @@ function renderHistory() {
 
   for (const item of game.history || []) {
     addEntry("player", "You", item.action);
-    addEntry("narrator", item.outcome, item.narration);
+    addEntry("narrator", item.cocPilot ? "Keeper" : item.outcome, item.narration);
 
     for (const eventText of item.timelineEvents || []) {
       addEntry("system", "Event", eventText);
@@ -3337,13 +3434,25 @@ async function assessAction() {
       ACTION_SCHEMA
     );
 
-    const chance = effectiveChance(interp);
-
-    currentAssessment = {
-      action,
-      interpretation: interp,
-      effectiveChance: chance,
-      confidence: interp.canEstimate ? confidenceBand(chance) : "Unknown"
+    const pilot=hasCocMode();
+    let preview=null;
+    if(pilot) {
+      const modules=await cocModules();
+      if(interp.actionType==="move" && interp.targetType==="location" &&
+         exitLocationsHere().some(location=>location.id===interp.targetId)) {
+        preview={skill:"Navigation",value:null,difficulty:null,
+          competence:"No skill required",chance:"Accessible"};
+      } else {
+        preview=modules.investigator.previewAction(game.coc.investigator,interp);
+      }
+    }
+    const chance=pilot?null:effectiveChance(interp);
+    currentAssessment={
+      action,interpretation:interp,pilot,
+      profileStamp:pilot?JSON.stringify(game.coc.investigator):null,
+      preview,effectiveChance:chance,
+      confidence:pilot ? (interp.canEstimate ? preview.chance : "Unknown") :
+        (interp.canEstimate ? confidenceBand(chance) : "Unknown")
     };
 
     recordDebug("action_assessment", {
@@ -3361,12 +3470,13 @@ async function assessAction() {
     riskDisplay.textContent = titleCase(interp.risk);
     uncertaintyDisplay.textContent = titleCase(interp.uncertainty);
     assessmentReason.textContent = interp.reason;
-    assessmentBasis.textContent =
-      `${titleCase(interp.actionType)} · primarily ${titleCase(interp.skill)}`;
+    assessmentBasis.textContent = pilot
+      ? preview.skill+" · "+preview.competence+" · Apparent chance only; hidden conditions may change the result."
+      : `${titleCase(interp.actionType)} · primarily ${titleCase(interp.skill)}`;
 
-    debugAssessment.textContent =
-      `base=${game.character.skills[interp.skill] ?? 50} ` +
-      `effective=${chance} difficulty=${interp.difficulty} target=${interp.targetType}:${interp.targetId}`;
+    debugAssessment.textContent=pilot
+      ? "CoC pilot: numeric checks are hidden in gameplay, including developer display."
+      : `base=${game.character.skills[interp.skill] ?? 50} effective=${chance} difficulty=${interp.difficulty} target=${interp.targetType}:${interp.targetId}`;
     debugAssessment.style.display = debugToggle.checked ? "block" : "none";
 
     assessmentBox.classList.add("visible");
@@ -3459,6 +3569,12 @@ async function commitAction() {
     return;
   }
 
+  if(hasCocMode()!==Boolean(currentAssessment.pilot) ||
+     (hasCocMode() && currentAssessment.profileStamp!==JSON.stringify(game.coc.investigator))) {
+    clearAssessment();
+    actionMessage.textContent="The investigator or rules mode changed. Assess again.";
+    return;
+  }
   assessButton.disabled = true;
   commitButton.disabled = true;
   playerInput.disabled = true;
@@ -3486,11 +3602,29 @@ async function commitAction() {
 
   const deterministicMove = Boolean(destination);
 
-  const roll = deterministicMove ? null : cryptoD100();
-
-  const outcome = deterministicMove
-    ? "Success"
-    : outcomeFromRoll(chance, roll);
+  // CoC uses only its own engine; legacy percentile and generic outcome
+  // are never invoked for a pilot check. Unsupported categories fail at assessment.
+  let cocResolution=null;
+  if(hasCocMode() && !deterministicMove) {
+    try{
+      const modules=await cocModules();
+      const actualDifficulty=modules.investigator.difficultyFromHiddenClues(
+        interp,compatibleClues(interp));
+      cocResolution=modules.kernel.check({
+        value:currentAssessment.preview.value,
+        difficulty:actualDifficulty
+      });
+    }catch(error) {
+      assessButton.disabled=false;playerInput.disabled=false;
+      clearAssessment();actionMessage.textContent="CoC check unavailable: "+error.message;
+      return;
+    }
+  }
+  const roll=deterministicMove||hasCocMode()?null:cryptoD100();
+  const outcome=deterministicMove?"Success":
+    hasCocMode()
+      ? (await cocModules()).investigator.outcomeForLegacyDiscovery(cocResolution)
+      : outcomeFromRoll(chance,roll);
 
   const minutes = adjustedMinutes(
     Math.max(1, interp.estimatedMinutes || (deterministicMove ? 5 : 1)),
@@ -3542,6 +3676,7 @@ async function commitAction() {
     interpretation: deepClone(interp),
     effectiveChance: chance,
     roll,
+    cocResolution: cocResolution ? deepClone(cocResolution) : null,
     deterministicMove,
     outcome,
     elapsedMinutes: minutes,
@@ -3627,11 +3762,13 @@ async function commitAction() {
       turn: game.turn,
       action,
       outcome,
+      cocPilot: hasCocMode(),
       narration,
       discoveries: discoveries.map(clue => clue.id),
       timelineEvents: timelineEvents.map(event => event.publicEvent),
       debug: {
         roll,
+        cocResolution,
         effectiveChance: chance,
         skill: interp.skill,
         difficulty: interp.difficulty,
@@ -3643,7 +3780,7 @@ async function commitAction() {
     saveGame();
 
     addEntry("player", "You", action);
-    addEntry("narrator", outcome, narration);
+    addEntry("narrator", "Keeper", narration);
 
     for (const event of timelineEvents) {
       addEntry("system", "Event", event.publicEvent);
@@ -3655,7 +3792,8 @@ async function commitAction() {
         "Developer",
         deterministicMove
           ? `Deterministic move to ${destination.name}; ${minutes} minute(s).`
-          : `Roll ${roll} vs effective ${chance}; ${interp.skill}/${interp.difficulty}; target ${interp.targetType}:${interp.targetId}.`
+          : hasCocMode() ? "CoC result recorded privately; no dice shown in gameplay." :
+          `Roll ${roll} vs effective ${chance}; ${interp.skill}/${interp.difficulty}; target ${interp.targetType}:${interp.targetId}.`
       );
     }
 
@@ -3667,8 +3805,9 @@ async function commitAction() {
       ? ` · ${discoveries.length} evidence item(s) found`
       : "";
 
-    actionMessage.textContent =
-      `${outcome} · ${minutes} minute(s) elapsed${foundText}.`;
+    actionMessage.textContent=hasCocMode()
+      ? `Action resolved · ${minutes} minute(s) elapsed${foundText}.`
+      : `${outcome} · ${minutes} minute(s) elapsed${foundText}.`;
   } catch (error) {
     recordDebug("narration_error", {
       action,
@@ -3685,11 +3824,13 @@ async function commitAction() {
       turn: game.turn,
       action,
       outcome,
+      cocPilot: hasCocMode(),
       narration: fallback,
       discoveries: discoveries.map(clue => clue.id),
       timelineEvents: timelineEvents.map(event => event.publicEvent),
       debug: {
         roll,
+        cocResolution,
         effectiveChance: chance,
         targetType: interp.targetType,
         targetId: interp.targetId
