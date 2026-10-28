@@ -90,7 +90,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **COC-004 — Player-controlled aftermath.** On suitable *overt* unsuccessful research/social/technical checks, the player may accept a setback, describe a changed approach and push once, or spend explicitly opted-in Luck for a visible point cost. CoC rules kernel decides the final outcome and resource update; all dice stay hidden. No prompts on silent perceptions or stealth. A second failed push advances extra time and adds a danger escalation description; realistic injury/threat escalation is not yet integrated.
 
-**Verification:** 38 automated Node tests in `tests/` including browser syntax, action contracts, point budget and consent checks. No manual authenticated hosted scenario smoke test is asserted. All affected full-scope gates remain **partial**: 18/100 accepted, CoC transition 0/5. This checkpoint advances real functionality without claiming comprehensive CoC fidelity.
+**Verification:** 39 automated Node tests in `tests/` including browser syntax, action contracts, point budget and consent checks. No manual authenticated hosted scenario smoke test is asserted. All affected full-scope gates remain **partial**: 18/100 accepted, CoC transition 0/5. This checkpoint advances real functionality without claiming comprehensive CoC fidelity.
 
 **Next checkpoint COC-005:** full editable 7e character point allocation, other age categories and professions, stronger local Keeper outcome transactions, serious push consequences and authenticated end-to-end case validation.
 
