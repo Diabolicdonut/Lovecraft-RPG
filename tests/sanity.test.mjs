@@ -19,7 +19,7 @@ test("successful SAN check applies lesser pre-authorized shock value",()=>{
 });
 test("failed SAN check applies dice and daily accumulation",()=>{
  const result=resolveSanityExposure({sanity:60,intelligence:70,dailyStartSan:70,
-  priorDailyLoss:10,lossOnFailure:"1D6"},seq(0,9,9));
+  priorDailyLoss:10,lossOnFailure:"1D6"},seq(0,9,9,0,1));
  assert.equal(result.sanityRoll.success,false);
  assert.equal(result.lost,6);
  assert.equal(result.dailyLoss,16);
