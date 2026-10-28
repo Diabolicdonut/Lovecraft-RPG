@@ -1,6 +1,16 @@
 # Black Meridian — Audit / Change Log
 
-> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version now **0.8.3**, with expanded optional pilot. Do not mark an incomplete rules gate accepted.
+> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version now **0.8.4**, with expanded creation editor and isolated SAN calculations. Do not mark an incomplete rules gate accepted.
+
+## v0.8.4 — COC-005/006: Custom creation editor and SAN groundwork (2026-10-28)
+
+- **COC-005:** new `engine/creation-planner.mjs` implements age 15–89 source-matched age adjustments including a second Luck roll for younger investigators, older EDU checks and physical/APP reductions. Uses four original professions; never claims this is the entire official catalog or arbitrary 90+ character support.
+- The browser now has saved, resumable character generation drafts with editable occupation and personal-interest point allocations. Skill eligibility, profession-specific Credit Rating, full expenditure, no Mythos creation points and 99 maximum are validated before finalizing. The Quick Generate route uses the same validated planner; old v0.8.3 investigators and legacy saves are preserved.
+- Added original Newspaper Reporter and Laboratory Researcher archetypes to the existing Archivist and Field Investigator, with user-visible age-loss attribute selection and opportunity to assign individual skill points.
+- **COC-006:** `engine/sanity.mjs` isolated SAN test framework: authorized SAN roll and dice loss, immediate INT test for shock, daily indefinite threshold, 0 SAN terminal state and Mythos-defined maximum. `tests/sanity.test.mjs` covers numerical edges. **Not wired to gameplay.** It does not deliver actual bouts, mania, recovery, injuries or SAN exposure data from case generation.
+- Validation: prior 39 checks + 9 creation planner + 1 browser contract + 10 SAN tests = **59 automated Node tests passing** in the CoC GitHub Actions workflow. Roadmap validator runs separately. **No manual authenticated browser/Cloudflare-generated adventure smoke test** has been verified.
+- Milestone gates `r-investigator`, `r-sanity`, `r-percentile`, `r-authority`, `r-preview` and `k-keeper` remain partial. **Whole-product 18/100; CoC transition 0/5**, as full subsystem acceptance still requires integration and other rules. Licensing review remains pending.
+- **Next COC-007:** authoritative SAN events, madness/recovery state, scenario fidelity tests; expand age/occupation/specialist choices and execute hosted gameplay smoke tests.
 
 ## v0.8.3 — COC-003/004 (2026-10-28)
 
@@ -50,7 +60,7 @@
 
 ## Current Build
 
-**Version:** 0.8.3  
+**Version:** 0.8.4  
 **Mystery Engine:** v0.2  
 **Architecture:** Browser-side game engine with Cloudflare used only as a protected OpenAI proxy.
 

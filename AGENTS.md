@@ -19,4 +19,4 @@
 5. Accept a gate only when its acceptance contract is fully met and independently verified, evidence documented and no regression in v0.8.1 foundations. Partial gate status earns zero weighted points.
 6. Prefer atomic/reviewable commits, retain old save migrations, never put GAME_TOKEN or API keys in commits/debug exports.
 
-**Next implementation:** COC-005: extend the v0.8.3 opt-in pilot with complete source-matched age/occupation/point-allocation character editor, explicit serious pushed-failure consequences, and authenticated browser/Worker scenario smoke tests. All scopes are still partial; legacy mode remains separate.
+**Next implementation:** COC-007 after v0.8.4: create rules-validated SAN-event authorizations from Keeper/scenario facts, bout/madness/recovery engine, complete full-occupation and specialist/era character coverage, and perform authenticated live browser/Cloudflare gameplay smoke tests. Current SAN module is isolated and MUST NOT apply random losses without an approved scene trigger. Partial gates still earn zero accepted points.

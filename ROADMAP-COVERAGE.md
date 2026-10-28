@@ -1,6 +1,6 @@
 # Black Meridian — Roadmap Coverage (derived synopsis)
 
-**Effective 2026-10-27 · Roadmap R1 · game v0.8.3**
+**Effective 2026-10-27 · Roadmap R1 · game v0.8.4**
 
 **Authoritative document:** [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). **Machine-readable ledger:** [site-progress.json](site-progress.json). This synopsis replaces the previous narrower scope; its historical 35% should not be displayed as completion of the now-expanded product.
 
@@ -21,7 +21,7 @@ A persistent, browser-based Lovecraftian RPG using Call of Cthulhu 7th Edition b
 | 6 · QA and release | 0 | 5 |
 | **Total** | **18** | **100** |
 
-**COC-003 + COC-004 shipped in v0.8.3:** generate adult investigators using 7e characteristic/occupation/interest points and two original archetypes; use canonical skill names in pilot AI requests; let players accept overt setbacks, push an altered approach, or explicitly spend optional Luck. 38 Node checks passed. Legacy remains default and CoC conversion is incomplete. **Next COC-005:** full creation/editor coverage, serious Keeper consequences and authenticated browser/Worker case smoke testing.
+**COC-005/006 implemented in v0.8.4:** custom investigator creation covering age 15–89, four original archetypes, resumable skill-point assignment with independently validated profession and personal-interest budgets; separate tested SAN event resolution foundation, not yet integrated with scenes. 59 passing Node checks. Legacy remains default, CoC conversion incomplete. **Next COC-007:** SAN event authority and actual madness/recovery phases, broader occupation/era rules and hosted browser/Worker case tests.
 
 ## Gates
 
@@ -35,7 +35,7 @@ A persistent, browser-based Lovecraftian RPG using Call of Cthulhu 7th Edition b
 - `r-percentile` — Deterministic secret d100 rules and opposed resolution (7 pts; partial)
 - `r-preview` — Intelligible competence and risk previews without dice (4 pts; partial)
 - `r-combat` — Combat, weapons, pursuit and environmental hazards (5 pts; planned)
-- `r-sanity` — Sanity, injury, major wounds, dying and recovery (5 pts; planned)
+- `r-sanity` — Sanity, injury, major wounds, dying and recovery (5 pts; partial)
 - `r-occult` — Occult threats, tomes, rituals and Mythos magic (3 pts; planned)
 - `r-advancement` — Experience, improvement, downtime and campaign economy (3 pts; planned)
 - `k-keeper` — Structured AI Keeper authority and narration (5 pts; partial)

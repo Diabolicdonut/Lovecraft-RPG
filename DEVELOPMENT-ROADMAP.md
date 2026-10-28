@@ -1,6 +1,6 @@
 # BLACK MERIDIAN — DEVELOPMENT ROADMAP
 
-**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.3 (expanded CoC pilot; COC-003/004) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
+**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.4 (COC-005 creation editor; COC-006 isolated Sanity mechanics) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
 
 > This is the governing **entire-product scope and milestone acceptance contract**. `site-progress.json` is its machine-readable progress ledger; `ROADMAP-COVERAGE.md` is a compact derived summary. No old generic probability mechanism is a target architecture. Older audit entries are historical, not an alternative specification.
 
@@ -49,7 +49,7 @@ Narrative text and optional HTML graphics are views of *one* authoritative world
 | `r-percentile` | Deterministic secret d100 rules and opposed resolution | 7 | partial |
 | `r-preview` | Intelligible competence and risk previews without dice | 4 | partial |
 | `r-combat` | Combat, weapons, pursuit and environmental hazards | 5 | planned |
-| `r-sanity` | Sanity, injury, major wounds, dying and recovery | 5 | planned |
+| `r-sanity` | Sanity, injury, major wounds, dying and recovery | 5 | partial |
 | `r-occult` | Occult threats, tomes, rituals and Mythos magic | 3 | planned |
 | `r-advancement` | Experience, improvement, downtime and campaign economy | 3 | planned |
 | `k-keeper` | Structured AI Keeper authority and narration | 5 | partial |
@@ -93,6 +93,16 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 **Verification:** 39 automated Node tests in `tests/` including browser syntax, action contracts, point budget and consent checks. No manual authenticated hosted scenario smoke test is asserted. All affected full-scope gates remain **partial**: 18/100 accepted, CoC transition 0/5. This checkpoint advances real functionality without claiming comprehensive CoC fidelity.
 
 **Next checkpoint COC-005:** full editable 7e character point allocation, other age categories and professions, stronger local Keeper outcome transactions, serious push consequences and authenticated end-to-end case validation.
+
+### COC-005 + COC-006 · 2026-10-28 — Creation draft editor and isolated Sanity arithmetic
+
+**COC-005: playable creation wizard.** `engine/creation-planner.mjs` follows the Keeper and Investigator Handbook Chapter 3 age-bracket modifiers for 15–89 (including 15–19 extra Luck roll and 40–89 EDU, APP and physical losses). Introduces a recoverable saved creation draft with separate occupation and personal-interest point ledgers; validates skill eligibility, profession Credit Rating bands, point totals and 99-at-creation cap. Players may assign occupation/interest points one by one, auto-allocate the remainder or finalize a complete sheet. Original occupation archetypes broaden to Archivist, Field Investigator, Newspaper Reporter and Laboratory Researcher. The old v0.8.3 character creation route and saves remain accessible via migration; gameplay version is **v0.8.4**. The **full official occupation list, specialist language/arts and era-specific options are still missing**.
+
+**COC-006: Sanity mechanics groundwork.** New `engine/sanity.mjs` and `tests/sanity.test.mjs` support explicitly authorized SAN checks, variable loss, 5+ loss-triggered INT test, daily 1/5 threshold for indefinite insanity, permanent collapse at zero SAN, and maximum SAN reduced by Mythos points. All use independent deterministic/secure rolls. The module is **NOT loaded into live encounters**: before activating SAN, the Keeper needs a structured, secret-safe exposure contract, scenario rule data, bouts of madness, recovery and player-facing consequence flow. No unsupported AI-generated SAN harm.
+
+**Automated evidence:** 59 passing Node tests including 9 new creation draft fixtures, 10 new SAN fixtures, and updated browser contracts; GitHub Actions and roadmap integrity jobs. Automated tests do **not** constitute an authenticated hosted case-play smoke test. New milestone code remains partial: overall **18/100 accepted**, CoC transition **0/5**.
+
+**Next COC-007:** validate and apply Keeper-authorized SAN exposures in playable cases; build temporary/indefinite madness and recovery; expand official-era occupations and test a real generation, investigation, save and reload session.
 
 ## 5. Detailed milestones and acceptance conditions
 
@@ -156,7 +166,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Create/edit/save multiple example investigators; on-demand player-facing sheet presents accurate values while routine turns stay narrative-first.
 
-**Evidence today:** engine/character-creation.mjs, engine/investigator.mjs; index.html v0.8.3 adult generated investigator (age 20–39) and editable identity; tests/character-creation.test.mjs (full editions/ages/point editor pending)
+**Evidence today:** engine/creation-planner.mjs + engine/character-creation.mjs; index.html v0.8.4 saved drafts and custom occupation/personal-interest assignment across age 15–89 and four original archetypes; tests/creation-planner.test.mjs (complete occupation/era/specializations and browser smoke still pending)
 
 ### r-percentile — Deterministic secret d100 rules and opposed resolution (7 points; partial)
 
@@ -182,13 +192,13 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Evidence today:** Pending combat/chase engine and tests
 
-### r-sanity — Sanity, injury, major wounds, dying and recovery (5 points; planned)
+### r-sanity — Sanity, injury, major wounds, dying and recovery (5 points; partial)
 
 **Scope:** Sanity loss, temporary/indefinite effects, bouts, underlying disorders, hit points, major wounds, healing and treatment.
 
 **Acceptance:** Rules-conformant ongoing state, persistent consequences, privacy-aware narration, recovery and tests of edge cases.
 
-**Evidence today:** Pending conditions and SAN subsystems
+**Evidence today:** engine/sanity.mjs and tests/sanity.test.mjs (isolated SAN event calculations; no authorized event feed, bouts, injury or recovery yet)
 
 ### r-occult — Occult threats, tomes, rituals and Mythos magic (3 points; planned)
 
@@ -298,7 +308,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **COC-001 implemented (isolated):** produced `docs/COC-7E-RULES-COVERAGE.md`, `engine/coc7.mjs` and `tests/coc7.test.mjs`; successful GitHub Actions test on 2026-10-27. This is preparatory work, not a live conversion or accepted full gate.
 
-**COC-002 was the initial v0.8.2 opt-in pilot. COC-003 + COC-004 ship in v0.8.3:** generated 20–39 investigators, direct named CoC skills and opt-in overt-failure push/Luck choices. **Next COC-005:** larger age/occupation/editor coverage, persistent consequence and secret Keeper safeguards, and authenticated end-to-end browser testing. No full CoC conversion claim.
+**COC-002 v0.8.2:** initial opt-in pilot. **COC-003/004 v0.8.3:** generated 20–39 investigators, direct named skills and push/Luck consent. **COC-005/006 v0.8.4:** saved age 15–89 custom skill-allocation drafts and isolated Sanity event mechanics. **Next COC-007:** connect authoritatively tagged horror events to SAN, add actual mental consequence phases, more official-era occupations and end-to-end browser/Worker scenario tests. No full CoC conversion claim.
 
 **Milestone A — mechanical spine:** g-governance → r-authority → r-percentile → r-investigator → r-preview. Implement sheet view and natural-language action pipeline together so the player immediately has meaningful agency without visible rolls.
 
@@ -326,7 +336,7 @@ There is no hard coupling that prevents starting the graphical scene model befor
 
 ## 8. Known gaps / unimplemented as of R1
 
-Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing default mode still uses the earlier generic engine; v0.8.3 offers a clearly labeled opt-in CoC investigation pilot with visible player choice for overt failures and blocks unsupported mechanics.
+Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing default mode still uses the earlier generic engine; v0.8.4 adds a separate advanced creation editor to the opt-in CoC investigative pilot. Sanity checks are isolated code only and do not yet activate in generated cases; unsupported mechanics are blocked.
 
 ## 9. Supporting documents
 

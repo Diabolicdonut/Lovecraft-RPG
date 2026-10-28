@@ -1,6 +1,6 @@
 # Black Meridian — Call of Cthulhu 7e Rules Coverage
 
-**Engineering checkpoint:** COC-003/004 · 2026-10-28 · **Governing roadmap:** R1 · **Live game:** v0.8.3 (legacy default; generated characters, direct skills and player-authorized overt failures in opt-in pilot).
+**Engineering checkpoint:** COC-005/006 · 2026-10-28 · **Governing roadmap:** R1 · **Live game:** v0.8.4 (legacy default; opt-in CoC pilot with custom investigator builder; SAN checks isolated but not wired).
 
 ## Reference and version policy
 
@@ -79,3 +79,10 @@ The following gates are **partial**, not accepted: 'g-governance', 'r-authority'
 - On *overt* research, social and technical failures, players can choose accept, a justified pushed second try, or opt into optional Luck spending. Rules kernel enforces disallowed purchases and first/second push constraints. Silent observations cannot expose unsuccessful checks with a prompt.
 - A failed push currently costs additional time and narrates increased jeopardy, but does not yet implement full CoC-specific injuries, Sanity or threat reactions. Privileged debugging and user-owned browser saves can disclose secrets to someone intentionally inspecting source/state.
 - 38 automated Node checks passed. Real authenticated Worker/backend case-play smoke test not performed. Rules distribution rights require separate approval before asserting an official/full CoC application.
+
+## COC-005/006: age, point-allocation and isolated SAN mechanics
+
+- Creation reference: 7e Keeper Rulebook Ch. 3, Investigator Handbook Ch. 3. `engine/creation-planner.mjs` implements 15–19 double Luck with EDU and STR/SIZ loss, 20–39 one EDU check, 40–89 tiered EDU improvements and STR/CON/DEX and APP deductions, plus independently limited occupation point pools and INT × 2 personal-interest allocations. Character builds use four original occupational templates rather than copy the books.
+- Creation point allocations survive JSON saves before finalization, and require complete budget spending and valid credit rating. Full book occupations, specialist/era selection, movement age modifiers and character sheet completeness still require further work.
+- `engine/sanity.mjs` contains **only** explicitly authorized SAN event calculation. Test SAN against current value; use specified pass/fail loss and 5+ shock INT check, check cumulative daily loss against 1/5 of original daily SAN, enforce zero-SAN end state and maximum SAN = 99 - Mythos. Do not inject automatic SAN events without original scene-authority data, and do not claim bouts, recovery or injury implemented.
+- 59 Node tests cover this expansion and previous kernel/browser mechanics. No authenticated hosted scenario test has been executed. `r-sanity` changes to **partial**, no weighted points earned.

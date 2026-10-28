@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "project": "Lovecraft-RPG",
   "asOf": "2026-10-28",
-  "revision": "v0.8.3",
+  "revision": "v0.8.4",
   "revisionSource": {
     "type": "text",
     "file": "audit.md",
@@ -14,14 +14,14 @@
     "completed": 0,
     "total": 5,
     "basis": "The five auditable outcomes are rules mapping; full investigator sheets; secret CoC d100 and risk previews; physical/mental consequences; end-to-end validated CoC cases.",
-    "note": "COC-003/004 expands the opt-in pilot with generated adult investigators, direct CoC skills, and overt push/Luck choices. No full conversion outcome accepted yet (0/5)."
+    "note": "0/5 full transition outcomes accepted. COC-005 adds saved age 15–89 custom investigator creation; COC-006 adds isolated SAN event calculations only. Live mystery SAN events and full rules integration are unimplemented."
   },
   "roadmap": {
     "label": "Full Black Meridian development roadmap",
     "version": "R1 (2026-10-27)",
     "scope": "7e rules engine + digital Keeper + procedurally generated scenarios/campaigns + optional HTML scene positions and ambient audio.",
     "document": "DEVELOPMENT-ROADMAP.md",
-    "note": "18% is full-vision evidence-backed accepted points. COC-003/004 has tested partial progress (38 Node tests), but no complete gate yet.",
+    "note": "18% full-vision accepted. The v0.8.4 creation editor and tested SAN kernel are partial milestone evidence; no full gate is accepted without hosted gameplay and complete subsystem coverage.",
     "gates": [
       {
         "id": "f-browser",
@@ -76,7 +76,7 @@
         "label": "Full optional investigator sheets and creation",
         "weight": 6,
         "status": "partial",
-        "evidence": "engine/character-creation.mjs; index.html v0.8.3 sheet generator; tests/character-creation.test.mjs (full occupations, editor and ages incomplete)",
+        "evidence": "engine/creation-planner.mjs, index.html v0.8.4 saved custom age 15–89 character editor, 4 original archetypes, tests/creation-planner.test.mjs; full official occupations/era specializations and hosted smoke pending",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
@@ -107,8 +107,8 @@
         "id": "r-sanity",
         "label": "Sanity, injury, major wounds, dying and recovery",
         "weight": 5,
-        "status": "planned",
-        "evidence": "Pending conditions and SAN subsystems",
+        "status": "partial",
+        "evidence": "engine/sanity.mjs and tests/sanity.test.mjs; pure SAN checks/daily thresholds, no live triggering, bouts/injury/recovery pending",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
