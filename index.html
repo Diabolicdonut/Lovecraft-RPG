@@ -3458,7 +3458,7 @@ async function assessAction() {
     recordDebug("action_assessment", {
       action,
       interpretation: interp,
-      baseSkill: game.character.skills[interp.skill] ?? 50,
+      baseSkill: pilot ? preview.value : (game.character.skills[interp.skill] ?? 50),
       effectiveChance: chance,
       confidence: currentAssessment.confidence,
       fatigue: game.character.fatigue,
@@ -3491,7 +3491,7 @@ async function assessAction() {
     });
 
     clearAssessment();
-    actionMessage.textContent = `Assessment failed: ${error.message}`;
+    actionMessage.textContent = `Assessment unavailable: ${error.message}`;
   } finally {
     assessButton.disabled = false;
   }
@@ -3749,7 +3749,9 @@ async function commitAction() {
       reasoning: { effort: "low" }
     });
 
-    const narration = outputText(data) || `${outcome}.`;
+    const narration = outputText(data) || (hasCocMode()
+      ? "You finish the attempt and watch for any reaction."
+      : `${outcome}.`);
 
     recordDebug("narration_result", {
       action,
@@ -3817,8 +3819,9 @@ async function commitAction() {
       error: String(error)
     });
 
-    const fallback =
-      `${outcome}. The engine resolved the action, but narration failed: ${error.message}`;
+    const fallback = hasCocMode()
+      ? "The action was resolved, but the Keeper could not complete its account. You may continue from the current scene."
+      : `${outcome}. The engine resolved the action, but narration failed: ${error.message}`;
 
     game.history.push({
       turn: game.turn,
