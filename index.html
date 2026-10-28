@@ -465,12 +465,34 @@
         <section class="panel">
           <div class="panel-body">
             <h2>Call of Cthulhu 7e · Pilot</h2>
-            <p class="help">Provisional character values for testing. This is not complete rules-legal investigator creation. CoC pilot checks are optional and limited to supported investigative actions.</p>
+            <p class="help">Create an original 1920s investigator (ages 20–39) or inspect the provisional example. The full edition-wide character builder is still under development. The pilot supports investigative actions only.</p>
+            <label for="cocNameInput">Investigator name</label>
+            <input id="cocNameInput" type="text" maxlength="100" value="New Investigator"/>
+            <label for="cocOccupationInput" style="margin-top:8px">Occupation archetype</label>
+            <select id="cocOccupationInput" style="width:100%;padding:9px;background:#0a0d0f;color:var(--text);border:1px solid var(--border)">
+              <option>Archivist</option><option>Field Investigator</option>
+            </select>
+            <label for="cocAgeInput" style="margin-top:8px">Age (20–39)</label>
+            <input id="cocAgeInput" type="number" min="20" max="39" value="27"/>
+            <div class="buttons">
+              <button id="cocGenerateButton" type="button">Generate Investigator</button>
+              <button id="cocEditButton" type="button">Edit Name / Backstory</button>
+            </div>
+            <label style="margin-top:10px">
+              <input id="cocLuckOptional" type="checkbox" style="width:auto" />
+              Allow optional Luck spending on overt failed skill checks
+            </label>
             <div class="buttons">
               <button id="cocSheetButton" type="button">Create / View Investigator Sheet</button>
               <button id="cocModeButton" type="button">Enable CoC Pilot</button>
             </div>
             <div id="cocStatus" class="help" role="status">Legacy mechanics active. CoC pilot is opt-in.</div>
+            <div id="cocDecisionPanel" class="assessment" style="display:none" aria-live="polite">
+              <p id="cocDecisionText"></p>
+              <label for="cocPushApproach">If you push, describe a new approach and accept the greater consequences of another failure.</label>
+              <input id="cocPushApproach" maxlength="260" placeholder="I take more time and try another method"/>
+              <div class="buttons" id="cocDecisionActions"></div>
+            </div>
             <details id="cocSheetDetails" style="margin-top:12px">
               <summary style="cursor:pointer">Investigator Sheet</summary>
               <div id="cocSheetContent" class="details" style="margin-top:10px" aria-live="polite"></div>
@@ -601,7 +623,7 @@
     </div>
 
     <footer>
-      Black Meridian · Browser Engine v0.8.2 · Mystery Engine v0.2
+      Black Meridian · Browser Engine v0.8.3 · Mystery Engine v0.2
     </footer>
   </div>
 
@@ -620,7 +642,7 @@ const MODEL = "gpt-6-astra";
 const SAVE_KEY = "lovecraftRpgSave_v04";
 const TOKEN_KEY = "lovecraftGameToken";
 const DEBUG_KEY = "blackMeridianDebug_v06";
-const APP_VERSION = "0.8.2";
+const APP_VERSION = "0.8.3";
 const DEBUG_REPORT_VERSION = 3;
 const MAX_DEBUG_EVENTS = 1000;
 
@@ -630,7 +652,7 @@ const MAX_DEBUG_EVENTS = 1000;
 
 function newGameState() {
   return {
-    version: "0.8.2",
+    version: "0.8.3",
     coc: {mode:"legacy", investigator:null},
     turn: 0,
     gameTime: "1931-10-17T17:30:00.000Z",
@@ -751,7 +773,7 @@ function migrateGameState(state) {
   const legacyNpcModel =
     state.mystery && mysteryUsesLegacyNpcModel(state.mystery);
 
-  state.version = "0.8.2";
+  state.version = "0.8.3";
   if(!state.coc || typeof state.coc!=="object") state.coc={mode:"legacy",investigator:null};
   if(!["legacy","coc-preview"].includes(state.coc.mode)) state.coc.mode="legacy";
 
@@ -888,8 +910,9 @@ let cocModulesPromise;
 async function cocModules() {
   if(!cocModulesPromise) cocModulesPromise=Promise.all([
     import("./engine/coc7.mjs"),
-    import("./engine/investigator.mjs")
-  ]).then(([kernel,investigator])=>({kernel,investigator})).catch(error=>{
+    import("./engine/investigator.mjs"),
+    import("./engine/character-creation.mjs")
+  ]).then(([kernel,investigator,creation])=>({kernel,investigator,creation})).catch(error=>{
     cocModulesPromise=null;
     throw error;
   });
@@ -900,6 +923,7 @@ function renderCocSheet() {
   const box=$("cocSheetContent");
   const actor=game.coc?.investigator;
   box.replaceChildren();
+  $("cocLuckOptional").checked=game.coc?.optionalLuck===true;
   $("cocModeButton").textContent=hasCocMode()?"Return to Legacy Mode":"Enable CoC Pilot";
   $("cocStatus").textContent=hasCocMode()
     ?"CoC pilot active for supported investigative checks. Combat, Sanity, chases and other unsupported actions are blocked, never silently switched to legacy mechanics."
@@ -926,6 +950,66 @@ function renderCocSheet() {
   for(const [k,v] of Object.entries(actor.attributes)) add(k,v);
   for(const [k,v] of Object.entries(actor.skills)) add(k,v+"%");
   add("Backstory",actor.backstory);
+  if(actor.origin==="generated-20-39")add("Creation", "7e characteristic dice + age 20–39 adjustment + bounded occupation and personal interests");
+}
+function createCocActorSafely() {
+  game.coc ||= {mode:"legacy",investigator:null};
+  return game.coc;
+}
+$("cocGenerateButton").addEventListener("click",async()=>{
+  if(playerInput.disabled===true && $("cocModeButton").disabled) return;
+  try{
+    const modules=await cocModules();
+    const name=$("cocNameInput").value.trim();
+    const age=Number($("cocAgeInput").value);
+    const occupation=$("cocOccupationInput").value;
+    const actor=modules.creation.createInvestigator({name,age,occupation});
+    if(game.coc?.investigator && !confirm("Replace the current CoC investigator? The earlier character will be preserved only in previous exports."))return;
+    createCocActorSafely().investigator=actor;
+    clearAssessment(); saveGame();
+    $("cocSheetDetails").open=true;
+  }catch(error){$("cocStatus").textContent="Generation failed: "+error.message;}
+});
+$("cocEditButton").addEventListener("click",async()=>{
+  try{
+    const modules=await cocModules();
+    const original=game.coc?.investigator;
+    if(!original)throw new Error("Generate or open a sheet first");
+    const name=prompt("Investigator name:",original.name);
+    if(name===null)return;
+    const backstory=prompt("Backstory (short):",original.backstory);
+    if(backstory===null)return;
+    createCocActorSafely().investigator=modules.creation.renameInvestigator(original,{name,backstory});
+    clearAssessment();saveGame();$("cocSheetDetails").open=true;
+  }catch(error){$("cocStatus").textContent="Editing failed: "+error.message;}
+});
+$("cocLuckOptional").addEventListener("change",()=>{
+  createCocActorSafely().optionalLuck=$("cocLuckOptional").checked===true;
+  saveGame();
+});
+function requestOvertCocDecision({availableLuck,canSpendLuck}) {
+  return new Promise(resolve=>{
+    const panel=$("cocDecisionPanel"),actions=$("cocDecisionActions");
+    const text=$("cocDecisionText"),approach=$("cocPushApproach");
+    panel.style.display="block";actions.replaceChildren();approach.value="";
+    text.textContent="This overt attempt has not succeeded. You may accept the setback, or justify one more attempt at greater risk."+
+      (canSpendLuck?" Optional Luck can secure this attempt for "+availableLuck+" point(s).":"");
+    const choice=(label,handler)=>{
+      const button=document.createElement("button");
+      button.type="button";button.textContent=label;
+      button.addEventListener("click",handler);actions.append(button);
+    };
+    function finish(response){
+      panel.style.display="none";actions.replaceChildren();resolve(response);
+    }
+    choice("Accept setback",()=>finish({type:"accept"}));
+    choice("Push at greater risk",()=>{
+      const detail=approach.value.trim();
+      if(detail.length<3){text.textContent="Describe a different approach before pushing. A second failure will be more serious.";return;}
+      finish({type:"push",approach:detail});
+    });
+    if(canSpendLuck) choice("Spend "+availableLuck+" Luck",()=>finish({type:"luck"}));
+  });
 }
 $("cocSheetButton").addEventListener("click",async()=>{
   try{
@@ -3408,9 +3492,20 @@ async function assessAction() {
   actionMessage.textContent = "Assessing the proposed action…";
 
   try {
+    const pilotSchema=hasCocMode();
+    const pilotModules=pilotSchema?await cocModules():null;
+    const actionSchema=pilotSchema?{
+      ...ACTION_SCHEMA,
+      properties:{...ACTION_SCHEMA.properties,skill:{
+        type:"string",enum:Object.keys(pilotModules.investigator.COC_SKILL_DEFAULTS)
+      }}
+    }:ACTION_SCHEMA;
     const interp = await callStructured(
       [
         "You are the intent interpreter for a browser-based deterministic investigative horror RPG.",
+        pilotSchema
+          ? "Call of Cthulhu 7e pilot: skill MUST be an exact canonical skill name from the supplied schema. Choose the most relevant specific skill (e.g. Listen, Spot Hidden, Library Use, Locksmith, Psychology). Never choose a legacy generic skill. Do not decide a roll."
+          : "Legacy mode: choose a matching generic capability from the schema.",
         "Classify the proposed action; do not decide whether it succeeds.",
         "Do not roll dice.",
         "Do not invent facts that are not present in the supplied public scene.",
@@ -3431,7 +3526,7 @@ async function assessAction() {
         proposedAction: action
       }),
       "action_interpretation",
-      ACTION_SCHEMA
+      actionSchema
     );
 
     const pilot=hasCocMode();
@@ -3578,8 +3673,8 @@ async function commitAction() {
   assessButton.disabled = true;
   commitButton.disabled = true;
   playerInput.disabled = true;
-  $("cocModeButton").disabled=true;
-  $("cocSheetButton").disabled=true;
+  for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+    $(id).disabled=true;
   actionMessage.textContent = "Resolving locally…";
 
   const interp = currentAssessment.interpretation;
@@ -3618,21 +3713,51 @@ async function commitAction() {
       });
     }catch(error) {
       assessButton.disabled=false;playerInput.disabled=false;
-      $("cocModeButton").disabled=false;$("cocSheetButton").disabled=false;
+      for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+        $(id).disabled=false;
       clearAssessment();actionMessage.textContent="CoC check unavailable: "+error.message;
       return;
     }
   }
+  // Only overt failures expose an informed player choice. Silent Spot Hidden,
+  // Listen, Stealth and similar private observations cannot signal failure.
+  let cocChoice="automatic", pushedApproach="";
+  if(hasCocMode() && cocResolution && !cocResolution.success &&
+     cocResolution.level!=="fumble" &&
+     ["research","social","technical"].includes(interp.actionType)) {
+    const modules=await cocModules();
+    const luckCost=cocResolution.roll-cocResolution.required;
+    const allowed=game.coc?.optionalLuck===true && luckCost>0 &&
+      luckCost<=game.coc.investigator.luck;
+    const decision=await requestOvertCocDecision({availableLuck:luckCost,canSpendLuck:allowed});
+    cocChoice=decision.type;
+    if(decision.type==="luck"){
+      const settled=modules.kernel.spendLuck({
+        initial:cocResolution,available:game.coc.investigator.luck,
+        consent:true,rollKind:"skill"
+      });
+      game.coc.investigator=modules.investigator.validateInvestigator({
+        ...game.coc.investigator,luck:settled.luckRemaining
+      });
+      cocResolution=settled;
+    }else if(decision.type==="push"){
+      pushedApproach=decision.approach;
+      cocResolution=modules.kernel.push({
+        initial:cocResolution,authorized:true,changedApproach:pushedApproach,
+        context:"noncombat"
+      });
+    }
+  }
   const roll=deterministicMove||hasCocMode()?null:cryptoD100();
-  const outcome=deterministicMove?"Success":
+  let outcome=deterministicMove?"Success":
     hasCocMode()
       ? (await cocModules()).investigator.outcomeForLegacyDiscovery(cocResolution)
       : outcomeFromRoll(chance,roll);
-
+  if(cocChoice==="push" && !cocResolution.success) outcome="Severe Failure";
   const minutes = adjustedMinutes(
     Math.max(1, interp.estimatedMinutes || (deterministicMove ? 5 : 1)),
     outcome
-  );
+  )*(cocChoice==="push"?2:1);
 
   const timeState = applyGenericEffects(interp, outcome, minutes);
 
@@ -3680,6 +3805,7 @@ async function commitAction() {
     effectiveChance: chance,
     roll,
     cocResolution: cocResolution ? deepClone(cocResolution) : null,
+    cocChoice,pushedApproach,
     deterministicMove,
     outcome,
     elapsedMinutes: minutes,
@@ -3705,6 +3831,11 @@ async function commitAction() {
         preResolutionState.publicScene || game.publicScene,
       playerAction: action,
       outcome,
+      cocChoice:hasCocMode()?cocChoice:null,
+      pushedApproach:hasCocMode()?pushedApproach:null,
+      pushConsequence:cocChoice==="push"&&!cocResolution.success
+        ?"The second attempt failed; extra time passed and the situation became more dangerous."
+        : null,
       actionType: interp.actionType,
       targetType: interp.targetType,
       risk: interp.risk,
@@ -3856,8 +3987,8 @@ async function commitAction() {
   } finally {
     assessButton.disabled = false;
     playerInput.disabled = false;
-    $("cocModeButton").disabled=false;
-    $("cocSheetButton").disabled=false;
+    for(const id of ["cocModeButton","cocSheetButton","cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton","generateCaseButton","surpriseCaseButton"])
+      $(id).disabled=false;
     playerInput.focus();
   }
 }
@@ -3868,6 +3999,7 @@ async function commitAction() {
 
 function clearAssessment() {
   currentAssessment = null;
+  if($("cocDecisionPanel"))$("cocDecisionPanel").style.display="none";
   assessmentBox.classList.remove("visible");
   confidenceDisplay.textContent = "—";
   riskDisplay.textContent = "—";
