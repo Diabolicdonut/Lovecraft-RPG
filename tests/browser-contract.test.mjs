@@ -60,3 +60,11 @@ test("CoC resolution locks import, reset, creation and mode switches while await
  assert.match(html,/if\(cocChoice==="push" && !cocResolution.success\)/);
  assert.match(html,/The second attempt failed/);
 });
+
+test("overt push and Luck chooser is visible beside action composer",()=>{
+ const composer=html.indexOf('id="playerInput"');
+ const chooser=html.indexOf('id="cocDecisionPanel"');
+ const commit=html.indexOf('id="commitButton"');
+ assert.ok(composer>=0&&chooser>composer&&commit>chooser);
+ assert.match(html,/panel\.scrollIntoView/);
+});
