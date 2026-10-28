@@ -126,7 +126,7 @@ export function validateCreationDraft(draft){
   schema:1,name:id,occupation:draft.occupation,age:draft.age,
   backstory:String(draft.backstory||"").slice(0,3000),
   agingAttribute:draft.agingAttribute,minorLossAttribute:draft.minorLossAttribute,
-  attributes,luck:draft.luck,baseSkills:b,occupationBudget,personalBudget,
+  attributes,luck:draft.luck,baseSkills:b,occupationBudget,personalBudget:attributes.INT*2,
   occupationPoints,personalPoints,occupationSpent,personalSpent,
   occupationRemaining:occupationBudget-occupationSpent,
   personalRemaining:personalBudget-personalSpent
