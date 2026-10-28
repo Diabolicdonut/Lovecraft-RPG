@@ -16,6 +16,16 @@ export const ARCHETYPES=Object.freeze({
    formula:"EDU2DEX2",credit:[9,30],
    skills:Object.freeze(["Credit Rating","Spot Hidden","Psychology","Library Use",
      "Stealth","Listen","Law","Persuade"])
+ }),
+ "Newspaper Reporter":Object.freeze({
+   formula:"EDU4",credit:[9,30],
+   skills:Object.freeze(["Credit Rating","History","Library Use","Language (Own)",
+     "Psychology","Fast Talk","Spot Hidden","Art/Craft"])
+ }),
+ "Laboratory Researcher":Object.freeze({
+   formula:"EDU4",credit:[9,45],
+   skills:Object.freeze(["Credit Rating","Library Use","Science",
+     "Electrical Repair","Mechanical Repair","Medicine","Spot Hidden","History"])
  })
 });
 const INTEREST_SKILLS=Object.freeze(["First Aid","Navigate","Locksmith","Track","Natural World","Charm","Drive Auto","Fighting (Brawl)"]);
