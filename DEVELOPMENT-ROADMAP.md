@@ -1,6 +1,6 @@
 # BLACK MERIDIAN — DEVELOPMENT ROADMAP
 
-**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.2 (CoC pilot opt-in) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
+**Roadmap revision:** R1 (2026-10-27) · **Game build:** v0.8.3 (expanded CoC pilot; COC-003/004) · **Repository:** `Diabolicdonut/Lovecraft-RPG` · **Authoritative branch:** `main`
 
 > This is the governing **entire-product scope and milestone acceptance contract**. `site-progress.json` is its machine-readable progress ledger; `ROADMAP-COVERAGE.md` is a compact derived summary. No old generic probability mechanism is a target architecture. Older audit entries are historical, not an alternative specification.
 
@@ -82,6 +82,18 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Next COC-003:** full source-matched 7e investigator creation, an editable persistent sheet, direct CoC skill selection (instead of strict generic capability adapter), safer Keeper authorization for secret/contested checks, player-managed pushed/Luck decisions, and manual scenario smoke testing; preserve older saves.
 
+### COC-003 and COC-004 — 2026-10-28: generation, direct named skills, informed choices
+
+**COC-003 — Investigator generation.** `engine/character-creation.mjs` rolls 3d6×5 / (2d6+6)×5 characteristics, age 20–39 EDU improvement, 3d6×5 Luck, derived resources, occupation pools and INT×2 personal-interest allocations. Two independently authored 1920s career archetypes (Archivist and Field Investigator) are offered. Players can generate/persist a sheet and edit name/backstory. Full official occupation catalog, age categories, specializations and spending customization remain unimplemented.
+
+**COC-003 — Direct skill intent.** CoC pilot Structured Output requests use canonical names from `COC_SKILL_DEFAULTS`; legacy mode still uses its old enum. The Keeper interprets actions but cannot select a die result. Original clue matching remains an explicit, temporary compatibility adapter. Unsupported tasks remain blocked in pilot mode.
+
+**COC-004 — Player-controlled aftermath.** On suitable *overt* unsuccessful research/social/technical checks, the player may accept a setback, describe a changed approach and push once, or spend explicitly opted-in Luck for a visible point cost. CoC rules kernel decides the final outcome and resource update; all dice stay hidden. No prompts on silent perceptions or stealth. A second failed push advances extra time and adds a danger escalation description; realistic injury/threat escalation is not yet integrated.
+
+**Verification:** 38 automated Node tests in `tests/` including browser syntax, action contracts, point budget and consent checks. No manual authenticated hosted scenario smoke test is asserted. All affected full-scope gates remain **partial**: 18/100 accepted, CoC transition 0/5. This checkpoint advances real functionality without claiming comprehensive CoC fidelity.
+
+**Next checkpoint COC-005:** full editable 7e character point allocation, other age categories and professions, stronger local Keeper outcome transactions, serious push consequences and authenticated end-to-end case validation.
+
 ## 5. Detailed milestones and acceptance conditions
 
 ## 0 · Preserved foundation
@@ -144,7 +156,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Create/edit/save multiple example investigators; on-demand player-facing sheet presents accurate values while routine turns stay narrative-first.
 
-**Evidence today:** engine/investigator.mjs and optional numeric prototype sheet in index.html v0.8.2, tests/investigator.test.mjs (full rule-legal creation and editing pending)
+**Evidence today:** engine/character-creation.mjs, engine/investigator.mjs; index.html v0.8.3 adult generated investigator (age 20–39) and editable identity; tests/character-creation.test.mjs (full editions/ages/point editor pending)
 
 ### r-percentile — Deterministic secret d100 rules and opposed resolution (7 points; partial)
 
@@ -152,7 +164,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Table-driven and statistical parity tests pass; AI cannot override result or generate rolls; rolls never appear in normal narrative.
 
-**Evidence today:** engine/coc7.mjs; tests/coc7.test.mjs; pilot opt-in in index.html v0.8.2; tests/browser-contract.test.mjs (partial live investigative integration, no combat/SAN)
+**Evidence today:** engine/coc7.mjs, index.html v0.8.3 with optional overt push/Luck choices, tests/coc7.test.mjs + tests/direct-actions.test.mjs (no full combat/SAN rules)
 
 ### r-preview — Intelligible competence and risk previews without dice (4 points; partial)
 
@@ -160,7 +172,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Calibrated CoC probabilities produce honest plain-language bands before commitment; avoid spoiler leaks and deny false precision under hidden opposition.
 
-**Evidence today:** engine/investigator.mjs previewAction; tests/investigator.test.mjs; index.html v0.8.2 pilot (apparent qualitative likelihood, hidden difficulty is not disclosed; calibration incomplete)
+**Evidence today:** direct CoC named-skill action schema and apparent qualitative previews in index.html v0.8.3; tests/investigator.test.mjs + tests/direct-actions.test.mjs (not full odds/disclosure parity)
 
 ### r-combat — Combat, weapons, pursuit and environmental hazards (5 points; planned)
 
@@ -202,7 +214,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **Acceptance:** Adversarial tests prove AI cannot invent rolls, override state, reveal Keeper-only facts or silently change character stats.
 
-**Evidence today:** Existing AI narration and browser resolution; CoC authority boundary pending
+**Evidence today:** index.html v0.8.3 structured direct skill request → private percentile outcome → narrated authorized result; broader NPC/opposition and consequence contracts pending.
 
 ### k-npcs — Persistent NPCs, relationships, plans and off-screen events (4 points; partial)
 
@@ -286,7 +298,7 @@ Isolated rule kernel and tests are in GitHub; [rules coverage and missing sectio
 
 **COC-001 implemented (isolated):** produced `docs/COC-7E-RULES-COVERAGE.md`, `engine/coc7.mjs` and `tests/coc7.test.mjs`; successful GitHub Actions test on 2026-10-27. This is preparatory work, not a live conversion or accepted full gate.
 
-**COC-002 shipped as opt-in pilot (v0.8.2):** bounded investigator sheet and investigative CoC checks; legacy play remains the default. **Next COC-003:** complete rule-legal investigator builder, direct CoC skill classification and stateful pushed/Luck choices, plus browser/Worker acceptance testing; do not yet claim full rules conversion.
+**COC-002 was the initial v0.8.2 opt-in pilot. COC-003 + COC-004 ship in v0.8.3:** generated 20–39 investigators, direct named CoC skills and opt-in overt-failure push/Luck choices. **Next COC-005:** larger age/occupation/editor coverage, persistent consequence and secret Keeper safeguards, and authenticated end-to-end browser testing. No full CoC conversion claim.
 
 **Milestone A — mechanical spine:** g-governance → r-authority → r-percentile → r-investigator → r-preview. Implement sheet view and natural-language action pipeline together so the player immediately has meaningful agency without visible rolls.
 
@@ -314,7 +326,7 @@ There is no hard coupling that prevents starting the graphical scene model befor
 
 ## 8. Known gaps / unimplemented as of R1
 
-Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing default mode still uses the earlier generic engine; v0.8.2 offers a clearly labeled, limited CoC investigative pilot and blocks unsupported CoC actions.
+Full CoC investigator creation and visible numeric sheet; CoC d100/opposed/push/Luck mechanics; calibrated task previews; combat/chases; Sanity and injuries; Mythos magic; advancement; autonomous NPCs and memories; validated multi-path case solution graph; legal scenario import; cross-scenario campaign continuity; graphical rooms/maps, position-aware travel, animation and optional ambient audio; full test suite, mobile validation and licensing decision. Existing default mode still uses the earlier generic engine; v0.8.3 offers a clearly labeled opt-in CoC investigation pilot with visible player choice for overt failures and blocks unsupported mechanics.
 
 ## 9. Supporting documents
 

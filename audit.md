@@ -1,6 +1,16 @@
 # Black Meridian — Audit / Change Log
 
-> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version now **0.8.2**, with optional pilot. Do not mark an incomplete rules gate accepted.
+> **Whole-product roadmap R1 (2026-10-27):** Full-vision coverage is **18/100 (18%) accepted**, replacing the prior narrower 35% rubric (not a code regression). Governing source: [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). The separate Call of Cthulhu transition remains 0/5; game version now **0.8.3**, with expanded optional pilot. Do not mark an incomplete rules gate accepted.
+
+## v0.8.3 — COC-003/004 (2026-10-28)
+
+- Generated investigator feature implemented in `engine/character-creation.mjs`: 7e standard characteristic/Luck dice, one age 20–39 EDU improvement check, derived stats, occupation and personal-interest budgets, and original Archivist/Field Investigator career selections. Name and backstory can be edited; existing legacy and provisional character saves stay separate. Formal character creation is **not complete** without all ages/occupations and point-allocation editor.
+- CoC pilot AI uses strict canonical named-skill schema; old generic classification remains confined to legacy mode. Existing case clue and time subsystem remains an explicitly temporary compatibility adapter.
+- Overt failure choices implemented: accept, push once using a player-described new attempt, or optionally spend stated Luck points with consent and persistent deduction. Silent perception/stealth rolls do not trigger choice prompts. Push failure adds time/complication, not yet a rules-validated injury subsystem.
+- Added `tests/character-creation.test.mjs` (7), `tests/direct-actions.test.mjs` (4), expanded `tests/browser-contract.test.mjs` (8), alongside previous `tests/coc7.test.mjs` (11) and `tests/investigator.test.mjs` (8): **38 total Node tests passing** in GitHub Actions. The temporary test contract discrepancy was fixed before accepted CI.
+- No authenticated Worker scenario generation or full manual gameplay verification performed. Do not represent the app as full Chaosium 7e rules compliant. Licensing review remains pending.
+- Published build is **v0.8.3**, roadmap R1, full scope **18%**, separate CoC conversion **0/5**; all relevant partial gates remain partial. No Cloudflare Worker updates.
+- Next COC-005: full occupation/age/point editor, rigorous pushed-consequence authority, automated scene/role privacy and hosted end-to-end testing.
 
 ## v0.8.2 — COC-002: Provisional investigator sheet and opt-in CoC checks (2026-10-27)
 
@@ -39,7 +49,7 @@
 
 ## Current Build
 
-**Version:** 0.8.2  
+**Version:** 0.8.3  
 **Mystery Engine:** v0.2  
 **Architecture:** Browser-side game engine with Cloudflare used only as a protected OpenAI proxy.
 

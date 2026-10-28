@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "project": "Lovecraft-RPG",
-  "asOf": "2026-10-27",
-  "revision": "v0.8.2",
+  "asOf": "2026-10-28",
+  "revision": "v0.8.3",
   "revisionSource": {
     "type": "text",
     "file": "audit.md",
@@ -14,14 +14,14 @@
     "completed": 0,
     "total": 5,
     "basis": "The five auditable outcomes are rules mapping; full investigator sheets; secret CoC d100 and risk previews; physical/mental consequences; end-to-end validated CoC cases.",
-    "note": "0/5 full transition outcomes accepted. COC-002 v0.8.2 exposes a limited opt-in CoC investigative pilot; default legacy mode remains until fully verified."
+    "note": "COC-003/004 expands the opt-in pilot with generated adult investigators, direct CoC skills, and overt push/Luck choices. No full conversion outcome accepted yet (0/5)."
   },
   "roadmap": {
     "label": "Full Black Meridian development roadmap",
     "version": "R1 (2026-10-27)",
     "scope": "7e rules engine + digital Keeper + procedurally generated scenarios/campaigns + optional HTML scene positions and ambient audio.",
     "document": "DEVELOPMENT-ROADMAP.md",
-    "note": "18% accepted across full vision; COC-002 provides an opt-in CoC investigation pilot, not full rules parity. Partial gates remain zero until complete.",
+    "note": "18% is full-vision evidence-backed accepted points. COC-003/004 has tested partial progress (38 Node tests), but no complete gate yet.",
     "gates": [
       {
         "id": "f-browser",
@@ -76,7 +76,7 @@
         "label": "Full optional investigator sheets and creation",
         "weight": 6,
         "status": "partial",
-        "evidence": "engine/investigator.mjs; index.html v0.8.2 optional provisional sheet; tests/investigator.test.mjs (full creation pending)",
+        "evidence": "engine/character-creation.mjs; index.html v0.8.3 sheet generator; tests/character-creation.test.mjs (full occupations, editor and ages incomplete)",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
@@ -84,7 +84,7 @@
         "label": "Deterministic secret d100 rules and opposed resolution",
         "weight": 7,
         "status": "partial",
-        "evidence": "engine/coc7.mjs; tests/coc7.test.mjs; index.html opt-in pilot; browser contract tests (CoC action coverage limited)",
+        "evidence": "engine/coc7.mjs; index.html v0.8.3 overt push/Luck consent; tests/coc7.test.mjs and tests/direct-actions.test.mjs (partial engine)",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
@@ -92,7 +92,7 @@
         "label": "Intelligible competence and risk previews without dice",
         "weight": 4,
         "status": "partial",
-        "evidence": "engine/investigator.mjs and tests/investigator.test.mjs; index.html v0.8.2 qualitative CoC pilot previews (not fully calibrated)",
+        "evidence": "index.html v0.8.3 structured direct CoC skill requests and qualitative preview; tests/direct-actions.test.mjs (partial)",
         "phase": "2 · Call of Cthulhu engine"
       },
       {
@@ -132,7 +132,7 @@
         "label": "Structured AI Keeper authority and narration",
         "weight": 5,
         "status": "partial",
-        "evidence": "index.html v0.8.2 conditional CoC pipeline with restricted intent map, private resolution and authorized narration (incomplete Keeper controls)",
+        "evidence": "index.html v0.8.3 structured input, private resolution and authorized narration; full secret/adjudication contracts pending",
         "phase": "3 · Digital Keeper"
       },
       {

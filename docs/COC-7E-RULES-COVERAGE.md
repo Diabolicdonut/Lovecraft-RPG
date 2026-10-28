@@ -1,6 +1,6 @@
 # Black Meridian — Call of Cthulhu 7e Rules Coverage
 
-**Engineering checkpoint:** COC-002 · 2026-10-27 · **Governing roadmap:** R1 · **Live game:** v0.8.2 (legacy default, opt-in limited CoC investigation pilot).
+**Engineering checkpoint:** COC-003/004 · 2026-10-28 · **Governing roadmap:** R1 · **Live game:** v0.8.3 (legacy default; generated characters, direct skills and player-authorized overt failures in opt-in pilot).
 
 ## Reference and version policy
 
@@ -71,3 +71,11 @@ The following gates are **partial**, not accepted: 'g-governance', 'r-authority'
 - The 7e pilot remains **partial**; no new weighted points until full milestone acceptance. Before calling it a full rules game, add a true character creator, Sanity, combat and opposed adjudication, player push/Luck choices, end-to-end mystery verification and distribution rights review.
 
 **Manual testing still required:** complete a real hosted generated mystery with an authentic game token; check migration and profile state, a successful and failed pilot action, no hidden result display, and the ability to return to legacy. Automated Node tests cannot replace this.
+
+## COC-003/004 expanded implementation — verified boundaries
+
+- Standard 7e characteristic and Luck generation + one age 20–39 EDU improvement is implemented, alongside two **original** archetypes using occupation point formulae and INT×2 interests. It is not the complete book occupation list, an arbitrary-age generator or a full point allocation editor.
+- The CoC action schema asks for the engine's canonical named skills; legacy interpreter selections are not a CoC substitute. The code still restricts pilot action categories, and existing case clue metadata remains legacy-oriented.
+- On *overt* research, social and technical failures, players can choose accept, a justified pushed second try, or opt into optional Luck spending. Rules kernel enforces disallowed purchases and first/second push constraints. Silent observations cannot expose unsuccessful checks with a prompt.
+- A failed push currently costs additional time and narrates increased jeopardy, but does not yet implement full CoC-specific injuries, Sanity or threat reactions. Privileged debugging and user-owned browser saves can disclose secrets to someone intentionally inspecting source/state.
+- 38 automated Node checks passed. Real authenticated Worker/backend case-play smoke test not performed. Rules distribution rights require separate approval before asserting an official/full CoC application.

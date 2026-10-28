@@ -1,6 +1,6 @@
 # Black Meridian — Roadmap Coverage (derived synopsis)
 
-**Effective 2026-10-27 · Roadmap R1 · game v0.8.2**
+**Effective 2026-10-27 · Roadmap R1 · game v0.8.3**
 
 **Authoritative document:** [DEVELOPMENT-ROADMAP.md](DEVELOPMENT-ROADMAP.md). **Machine-readable ledger:** [site-progress.json](site-progress.json). This synopsis replaces the previous narrower scope; its historical 35% should not be displayed as completion of the now-expanded product.
 
@@ -21,7 +21,7 @@ A persistent, browser-based Lovecraftian RPG using Call of Cthulhu 7th Edition b
 | 6 · QA and release | 0 | 5 |
 | **Total** | **18** | **100** |
 
-**COC-002 shipped in v0.8.2 (opt-in pilot):** provisional 7e investigator sheet, qualitative skill/risk previews, bounded investigative actions resolved using the new percentile kernel, guarded unsupported categories and additional integration tests. Legacy gameplay remains the default. **Next COC-003:** complete investigator creation, direct CoC skill adjudication, player-controlled pushed/Luck actions and manual browser/Worker smoke tests. Each future code update must revise roadmap progress/audit together; planned and partial gates do not count until their full acceptance checks pass.
+**COC-003 + COC-004 shipped in v0.8.3:** generate adult investigators using 7e characteristic/occupation/interest points and two original archetypes; use canonical skill names in pilot AI requests; let players accept overt setbacks, push an altered approach, or explicitly spend optional Luck. 38 Node checks passed. Legacy remains default and CoC conversion is incomplete. **Next COC-005:** full creation/editor coverage, serious Keeper consequences and authenticated browser/Worker case smoke testing.
 
 ## Gates
 
