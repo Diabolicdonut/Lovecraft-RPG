@@ -9,7 +9,7 @@ test("entire browser application inline script compiles on Node V8",()=>{
  assert.doesNotThrow(()=>new vm.Script(original[1],{filename:"index.html"}));
 });
 test("version, status widget and scenario generation retained",()=>{
- assert.match(html,/const APP_VERSION = "0\.8\.2";/);
+ assert.match(html,/const APP_VERSION = "0\.8\.3";/);
  assert.match(html,/site-progress\.js/);
  assert.match(html,/async function createPremiseContract/);
  assert.match(html,/const MYSTERY_SCHEMA =/);
@@ -40,4 +40,23 @@ test("CoC action UI obscures dice and does not use generic success labels",()=>{
  assert.match(html,/addEntry\("narrator", "Keeper", narration\)/);
  assert.match(html,/item\.cocPilot \? "Keeper" : item\.outcome/);
  assert.match(html,/Action resolved ·/);
+});
+
+test("COC-003: generated character form, direct CoC schema and overt consent are present",()=>{
+ assert.match(html,/id="cocGenerateButton"/);
+ assert.match(html,/id="cocOccupationInput"/);
+ assert.match(html,/id="cocAgeInput"/);
+ assert.match(html,/character-creation\.mjs/);
+ assert.match(html,/const actionSchema=pilotSchema/);
+ assert.match(html,/enum:Object\.keys\(pilotModules\.investigator\.COC_SKILL_DEFAULTS\)/);
+ assert.match(html,/requestOvertCocDecision/);
+ assert.match(html,/modules\.kernel\.spendLuck/);
+ assert.match(html,/modules\.kernel\.push/);
+ assert.match(html,/cocResolution\.level!=="fumble"/);
+ assert.match(html,/coc\.optionalLuck/);
+});
+test("CoC resolution locks import, reset, creation and mode switches while awaiting choice",()=>{
+ assert.match(html,/cocGenerateButton","cocEditButton","cocLuckOptional","resetButton","importButton"/);
+ assert.match(html,/if\(cocChoice==="push" && !cocResolution.success\)/);
+ assert.match(html,/The second attempt failed/);
 });
